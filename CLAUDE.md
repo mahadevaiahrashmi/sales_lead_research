@@ -1,13 +1,23 @@
 <!-- For a human-readable overview, see README.md and docs/template-guide.md -->
+<!-- tracking-adapter: github-projects -->
+<!-- project-number: 5 -->
+<!-- project-owner: mahadevaiahrashmi -->
+<!-- project-node-id: PVT_kwHOATydZs4BUtC2 -->
+<!-- status-field-id: PVTSSF_lAHOATydZs4BUtC2zhCIs6w -->
+<!-- status-option-backlog: b47b9404 -->
+<!-- status-option-ready: fc2fa384 -->
+<!-- status-option-in-progress: 33e5be0d -->
+<!-- status-option-in-review: d79cdd57 -->
+<!-- status-option-done: e7258da6 -->
 # CLAUDE.md — Project Instructions for Claude Code
 
 ## Project Overview
 
 <!-- TODO: Replace this section with your project's overview after scaffolding -->
 
-**Project Name:** [Your Project Name]
-**Description:** [Brief description of what this project does]
-**Tech Stack:** [Language, framework, key libraries — update after running a scaffold command]
+**Project Name:** Sales Lead Research
+**Description:** CLI chat tool for internal sales: given a company name, pulls the parent/subsidiary structure from its SEC EDGAR filings (10-K Exhibit 21) and prints the corporate hierarchy as a tree.
+**Tech Stack:** Python 3.12 (uv), httpx, beautifulsoup4, rich (tree rendering), pytest. Data source: SEC EDGAR.
 
 **Codebase map:** `docs/code-map.md` — read this first to understand the package structure, public APIs, and data flow.
 
