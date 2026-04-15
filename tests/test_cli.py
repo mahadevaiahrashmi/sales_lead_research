@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #1 acceptance tests for run_repl chat loop", deps: ["src/sales_lead_research/cli.py"], state: active, last: "tara@2026-04-15" }
+# agent-notes: { ctx: "issue #1 acceptance tests for run_repl chat loop", deps: ["src/sales_lead_research/cli.py"], state: active, last: "sato@2026-04-15b" }
 """Acceptance tests for issue #1: CLI chat loop with placeholder hierarchy.
 
 Strategy: drive ``run_repl`` with an iterator of input lines and a StringIO
@@ -58,6 +58,13 @@ class TestEofTerminatesCleanly:
         output = _run(["Acme Corp"])
         assert "Acme Corp" in output
 
+    def test_real_textio_eof_terminates_cleanly(self):
+        # Exercise real TextIO line-iteration semantics (not a list iterator):
+        # a StringIO reaching EOF must end the loop without an explicit "exit".
+        out = io.StringIO()
+        run_repl(io.StringIO("Acme Corp\n"), out)
+        assert "Acme Corp" in out.getvalue()
+
 
 class TestEmptyInputHandledGracefully:
     def test_blank_line_does_not_crash(self):
@@ -80,8 +87,3 @@ class TestEmptyInputHandledGracefully:
     def test_blank_then_real_query_still_works(self):
         output = _run(["", "Acme Corp", "exit"])
         assert "Acme Corp" in output
-
-
-def test_run_repl_signature_accepts_iterable_and_textio():
-    # Smoke check: function exists and is callable with the documented shape.
-    assert callable(run_repl)
