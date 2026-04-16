@@ -1,0 +1,12 @@
+{
+  "cik": "3333333",
+  "name": "No Filings Corp",
+  "filings": {
+    "recent": {
+      "accessionNumber": ["0003333333-24-000001"],
+      "filingDate": ["2024-05-01"],
+      "form": ["8-K"],
+      "primaryDocument": ["nofk-20240501.htm"]
+    }
+  }
+}
