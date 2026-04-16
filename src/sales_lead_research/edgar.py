@@ -46,6 +46,7 @@ the exact failure mode.
 from __future__ import annotations
 
 from html.parser import HTMLParser
+from pathlib import Path
 from urllib.parse import urljoin
 
 import httpx
@@ -184,7 +185,10 @@ def find_exhibit_21(name: str, client: httpx.Client) -> str:
 
 
 def search_companies(
-    name: str, client: httpx.Client
+    name: str,
+    client: httpx.Client,
+    *,
+    cache_dir: Path | None = None,
 ) -> list[tuple[str, str]]:
     """Search for companies by title substring or ticker symbol (case-insensitive).
 
@@ -192,9 +196,18 @@ def search_companies(
     is a zero-padded 10-digit CIK. Checks both title (substring) and ticker
     (exact match), deduplicating by CIK. Raises ``CompanyNotFound`` if no
     entries match either field.
+
+    When *cache_dir* is provided, ``company_tickers.json`` is cached locally
+    to avoid redundant fetches.
     """
-    resp = client.get("https://www.sec.gov/files/company_tickers.json")
-    resp.raise_for_status()
+    url = "https://www.sec.gov/files/company_tickers.json"
+    if cache_dir is not None:
+        from sales_lead_research.cache import cached_get
+
+        resp = cached_get(client, url, cache_dir)
+    else:
+        resp = client.get(url)
+        resp.raise_for_status()
     tickers = resp.json()
 
     needle = name.strip().lower()
