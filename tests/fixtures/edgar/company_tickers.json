@@ -6,5 +6,7 @@
   "4": {"cik_str": 2222222, "ticker": "ACME2", "title": "Acme Holdings Inc."},
   "5": {"cik_str": 3333333, "ticker": "NOFK", "title": "No Filings Corp"},
   "6": {"cik_str": 1048911, "ticker": "FDX", "title": "FEDEX CORP"},
-  "7": {"cik_str": 1048912, "ticker": "FDXG", "title": "FEDEX GROUND INC"}
+  "7": {"cik_str": 1048912, "ticker": "FDXG", "title": "FEDEX GROUND INC"},
+  "8": {"cik_str": 9999999, "ticker": "PRNT", "title": "PARENT CORP"},
+  "9": {"cik_str": 8888888, "ticker": "CHLD", "title": "CHILD INC"}
 }

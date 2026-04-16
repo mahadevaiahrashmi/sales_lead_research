@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "REPL chat loop, EDGAR lookup, tree + CSV output", deps: ["rich", "httpx", "csv", "sales_lead_research.edgar"], state: active, last: "sato@2026-04-16" }
+# agent-notes: { ctx: "REPL chat loop, EDGAR lookup, recursive tree + CSV output", deps: ["rich", "httpx", "csv", "sales_lead_research.edgar"], state: active, last: "sato@2026-04-16" }
 """CLI chat loop.
 
 ``run_repl`` iterates input lines as user queries, rendering a placeholder
@@ -23,7 +23,9 @@ from rich.tree import Tree
 
 from sales_lead_research.edgar import (
     EdgarLookupError,
+    SubsidiaryNode,
     exhibit_21_url,
+    fetch_subsidiary_tree,
     latest_10k_accession,
     parse_exhibit_21,
     search_companies,
@@ -129,17 +131,35 @@ def run_repl(
         if not answer:
             continue
 
-        # Fetch and parse Exhibit 21
-        resp = client.get(url)
-        resp.raise_for_status()
-        subsidiaries = parse_exhibit_21(resp.text)
+        # Build recursive subsidiary tree
+        try:
+            root_node = fetch_subsidiary_tree(company_name, client)
+        except EdgarLookupError as exc:
+            console.print(str(exc))
+            continue
 
         # Render tree
         console.print(f"{company_name} (CIK: {cik})")
-        tree = Tree(company_name)
-        for sub_name, jurisdiction in subsidiaries:
-            tree.add(f"{sub_name} ({jurisdiction})")
+
+        def _add_children(rich_tree: Tree, node: SubsidiaryNode) -> None:
+            for child in node.children:
+                label = f"{child.name} ({child.jurisdiction})" if child.jurisdiction else child.name
+                branch = rich_tree.add(label)
+                _add_children(branch, child)
+
+        tree = Tree(root_node.name)
+        _add_children(tree, root_node)
         console.print(tree)
+
+        # Flatten tree for CSV export
+        flat: list[tuple[str, str, int]] = []
+
+        def _flatten(node: SubsidiaryNode, depth: int) -> None:
+            for child in node.children:
+                flat.append((child.name, child.jurisdiction, depth))
+                _flatten(child, depth + 1)
+
+        _flatten(root_node, 1)
 
         # CSV export
         safe_name = company_name.lower().replace(" ", "_").replace("/", "_").replace("..", "_")
@@ -151,8 +171,8 @@ def run_repl(
 
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Subsidiary Name", "Jurisdiction"])
-            for sub_name, jurisdiction in subsidiaries:
-                writer.writerow([sub_name, jurisdiction])
+            writer.writerow(["Subsidiary Name", "Jurisdiction", "Level"])
+            for sub_name, jurisdiction, level in flat:
+                writer.writerow([sub_name, jurisdiction, level])
 
-        console.print(f"Saved to {filename} ({len(subsidiaries)} subsidiaries)")
+        console.print(f"Saved to {filename} ({len(flat)} subsidiaries)")

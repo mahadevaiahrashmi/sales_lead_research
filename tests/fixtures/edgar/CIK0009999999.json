@@ -1,0 +1,20 @@
+{
+  "cik": "9999999",
+  "name": "PARENT CORP",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0009999999-24-000001"
+      ],
+      "filingDate": [
+        "2024-03-15"
+      ],
+      "form": [
+        "10-K"
+      ],
+      "primaryDocument": [
+        "parent-20240101.htm"
+      ]
+    }
+  }
+}

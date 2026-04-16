@@ -1,0 +1,20 @@
+{
+  "cik": "8888888",
+  "name": "CHILD INC",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0008888888-24-000001"
+      ],
+      "filingDate": [
+        "2024-04-20"
+      ],
+      "form": [
+        "10-K"
+      ],
+      "primaryDocument": [
+        "child-20240101.htm"
+      ]
+    }
+  }
+}

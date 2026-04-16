@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "SEC EDGAR lookup: name -> Exhibit 21 URL + parse", deps: ["httpx", "beautifulsoup4"], state: active, last: "sato@2026-04-16" }  # noqa: E501
+# agent-notes: { ctx: "SEC EDGAR lookup: name -> Exhibit 21 URL + parse + recursive walk", deps: ["httpx", "beautifulsoup4"], state: active, last: "sato@2026-04-16" }  # noqa: E501
 """SEC EDGAR company lookup — public contract (Sato: implement these).
 
 Pipeline: company name -> CIK -> latest 10-K accession -> Exhibit 21 URL.
@@ -45,11 +45,25 @@ the exact failure mode.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin
 
 import httpx
+
+
+@dataclass
+class SubsidiaryNode:
+    """A node in a recursive corporate hierarchy tree.
+
+    Each node represents a subsidiary (or the root parent company) with
+    its jurisdiction and a list of child subsidiaries.
+    """
+
+    name: str
+    jurisdiction: str
+    children: list[SubsidiaryNode] = field(default_factory=list)
 
 
 class EdgarLookupError(Exception):
@@ -271,3 +285,110 @@ def parse_exhibit_21(html: str) -> list[tuple[str, str]]:
                     results.append((name, jurisdiction))
 
     return results
+
+
+def fetch_subsidiary_tree(
+    name: str,
+    client: httpx.Client,
+    *,
+    max_depth: int = 2,
+) -> SubsidiaryNode:
+    """Build a recursive corporate hierarchy tree from SEC EDGAR filings.
+
+    Starting from *name*, resolves the company's CIK, fetches its latest
+    10-K Exhibit 21, and parses subsidiaries. For each subsidiary that is
+    itself an SEC filer (appears in ``company_tickers.json``), recursively
+    fetches its Exhibit 21 up to *max_depth* levels.
+
+    Subsidiaries that are not SEC filers, or that fail lookup for any
+    reason, become leaf nodes (empty ``children`` list).
+
+    Parameters
+    ----------
+    name:
+        Company name to look up (case-insensitive).
+    client:
+        An ``httpx.Client`` with appropriate ``User-Agent`` header.
+    max_depth:
+        Maximum recursion depth. ``1`` means only the root company's
+        direct subsidiaries (no recursion). ``2`` means one level of
+        nested subsidiaries. Default is ``2``.
+
+    Returns
+    -------
+    SubsidiaryNode
+        Root node with ``name``, ``jurisdiction`` set to ``""`` (the root
+        company's jurisdiction is not in its own Exhibit 21), and
+        ``children`` populated recursively.
+
+    Raises
+    ------
+    EdgarLookupError
+        If the root company cannot be resolved or has no 10-K / Exhibit 21.
+    """
+    # Fetch the ticker index once for filer-detection across all recursion levels.
+    resp = client.get("https://www.sec.gov/files/company_tickers.json")
+    resp.raise_for_status()
+    tickers_data = resp.json()
+
+    # Build a case-insensitive title -> CIK lookup.
+    title_to_cik: dict[str, str] = {}
+    for entry in tickers_data.values():
+        title_to_cik[entry["title"].strip().lower()] = str(entry["cik_str"]).zfill(10)
+
+    def _build_node(
+        company_name: str,
+        jurisdiction: str,
+        current_depth: int,
+    ) -> SubsidiaryNode:
+        """Recursively build a SubsidiaryNode tree."""
+        if current_depth >= max_depth:
+            return SubsidiaryNode(name=company_name, jurisdiction=jurisdiction)
+
+        # Look up this company's CIK from the ticker index.
+        cik_for_company = title_to_cik.get(company_name.strip().lower())
+        if cik_for_company is None:
+            return SubsidiaryNode(name=company_name, jurisdiction=jurisdiction)
+
+        try:
+            accession = latest_10k_accession(cik_for_company, client)
+            url = exhibit_21_url(cik_for_company, accession, client)
+            ex21_resp = client.get(url)
+            ex21_resp.raise_for_status()
+            subsidiaries = parse_exhibit_21(ex21_resp.text)
+        except Exception:
+            # Any failure during subsidiary lookup -> leaf node.
+            return SubsidiaryNode(name=company_name, jurisdiction=jurisdiction)
+
+        children = [
+            _build_node(sub_name, sub_jurisdiction, current_depth + 1)
+            for sub_name, sub_jurisdiction in subsidiaries
+        ]
+        return SubsidiaryNode(
+            name=company_name, jurisdiction=jurisdiction, children=children
+        )
+
+    # Root: resolve the company name to CIK and build the tree starting at depth 0.
+    cik = resolve_cik(name, client)
+
+    # Get the canonical company name from the ticker data.
+    root_name = name
+    for entry in tickers_data.values():
+        if str(entry["cik_str"]).zfill(10) == cik:
+            root_name = entry["title"]
+            break
+
+    try:
+        accession = latest_10k_accession(cik, client)
+        url = exhibit_21_url(cik, accession, client)
+        ex21_resp = client.get(url)
+        ex21_resp.raise_for_status()
+        subsidiaries = parse_exhibit_21(ex21_resp.text)
+    except Exception:
+        return SubsidiaryNode(name=root_name, jurisdiction="")
+
+    children = [
+        _build_node(sub_name, sub_jurisdiction, 1)
+        for sub_name, sub_jurisdiction in subsidiaries
+    ]
+    return SubsidiaryNode(name=root_name, jurisdiction="", children=children)

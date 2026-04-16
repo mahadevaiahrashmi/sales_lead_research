@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #1 + #3 acceptance tests for run_repl chat loop", deps: ["src/sales_lead_research/cli.py", "src/sales_lead_research/edgar.py", "tests/fixtures/edgar/"], state: active, last: "tara@2026-04-16" }
+# agent-notes: { ctx: "issue #1 + #3 + #4 acceptance tests for run_repl chat loop", deps: ["src/sales_lead_research/cli.py", "src/sales_lead_research/edgar.py", "tests/fixtures/edgar/"], state: active, last: "tara@2026-04-16" }
 """Acceptance tests for issue #1: CLI chat loop with placeholder hierarchy.
 
 Strategy: drive ``run_repl`` with an iterator of input lines and a StringIO
@@ -270,7 +270,7 @@ class TestCsvExport:
         with open(csv_file) as f:
             reader = csv.reader(f)
             headers = next(reader)
-        assert headers == ["Subsidiary Name", "Jurisdiction"]
+        assert headers == ["Subsidiary Name", "Jurisdiction", "Level"]
 
     def test_csv_contains_all_subsidiaries(self, edgar_client, tmp_path):
         _run_with_client(
@@ -318,3 +318,126 @@ class TestSearchCompaniesFunction:
         for _name, cik in results:
             assert len(cik) == 10
             assert cik.isdigit()
+
+
+# ---------------------------------------------------------------------------
+# Issue #4: Recursive subsidiary walk — CLI integration tests
+# ---------------------------------------------------------------------------
+
+
+def _recursive_cli_mock_handler(request: httpx.Request) -> httpx.Response:
+    """Mock transport for recursive walk CLI tests.
+
+    Serves PARENT CORP -> CHILD INC -> GRANDCHILD CORP hierarchy.
+    """
+    url = str(request.url)
+
+    if url == "https://www.sec.gov/files/company_tickers.json":
+        return httpx.Response(200, content=_fixture("company_tickers.json"))
+
+    # PARENT CORP
+    if url == "https://data.sec.gov/submissions/CIK0009999999.json":
+        return httpx.Response(200, content=_fixture("CIK0009999999.json"))
+    if "000999999924000001/0009999999-24-000001-index.htm" in url:
+        return httpx.Response(200, content=_fixture("parent_10k_filing_index.html"))
+    if "parent-20240101ex211.htm" in url:
+        return httpx.Response(200, content=_fixture("parent_exhibit_21.html"))
+
+    # CHILD INC
+    if url == "https://data.sec.gov/submissions/CIK0008888888.json":
+        return httpx.Response(200, content=_fixture("CIK0008888888.json"))
+    if "000888888824000001/0008888888-24-000001-index.htm" in url:
+        return httpx.Response(200, content=_fixture("child_10k_filing_index.html"))
+    if "child-20240101ex211.htm" in url:
+        return httpx.Response(200, content=_fixture("child_exhibit_21.html"))
+
+    return httpx.Response(404, text=f"Not found in test fixtures: {url}")
+
+
+@pytest.fixture()
+def recursive_cli_client() -> httpx.Client:
+    transport = httpx.MockTransport(_recursive_cli_mock_handler)
+    return httpx.Client(
+        transport=transport,
+        headers={"User-Agent": "Sales Lead Research (test@example.com)"},
+    )
+
+
+class TestRecursiveTreeRendering:
+    """Issue #4: verify run_repl renders nested subsidiary trees and CSV
+    with multi-level data when fetch_subsidiary_tree is wired in."""
+
+    def test_nested_tree_shows_grandchild(self, recursive_cli_client, tmp_path):
+        """Full flow: PARENT CORP -> confirm -> confirm -> exit should
+        render a tree with GRANDCHILD CORP nested under CHILD INC."""
+        output = _run_with_client(
+            ["PARENT CORP", "y", "y", "exit"],
+            recursive_cli_client,
+            tmp_path,
+        )
+        assert "PARENT CORP" in output
+        assert "CHILD INC" in output
+        assert "GRANDCHILD CORP" in output
+
+    def test_nested_tree_has_tree_glyphs(self, recursive_cli_client, tmp_path):
+        """The tree output must contain Rich tree glyphs for nested items."""
+        output = _run_with_client(
+            ["PARENT CORP", "y", "y", "exit"],
+            recursive_cli_client,
+            tmp_path,
+        )
+        tree_glyphs = ("\u251c", "\u2514", "\u2502")
+        assert any(glyph in output for glyph in tree_glyphs), (
+            f"expected tree glyphs in output, got: {output!r}"
+        )
+
+    def test_leaf_subsidiary_appears_in_tree(self, recursive_cli_client, tmp_path):
+        """LEAF LLC (not an SEC filer) should still appear in the tree."""
+        output = _run_with_client(
+            ["PARENT CORP", "y", "y", "exit"],
+            recursive_cli_client,
+            tmp_path,
+        )
+        assert "LEAF LLC" in output
+
+    def test_csv_includes_all_levels(self, recursive_cli_client, tmp_path):
+        """CSV export should contain subsidiaries from ALL levels of the
+        tree, not just direct children."""
+        _run_with_client(
+            ["PARENT CORP", "y", "y", "exit"],
+            recursive_cli_client,
+            tmp_path,
+        )
+        csv_files = list(tmp_path.glob("*.csv"))
+        assert len(csv_files) == 1, f"expected 1 CSV file, got: {csv_files}"
+
+        with open(csv_files[0]) as f:
+            reader = csv.reader(f)
+            headers = next(reader)
+            rows = list(reader)
+
+        # All three subsidiaries should appear: CHILD INC, LEAF LLC, GRANDCHILD CORP
+        names = [row[0] for row in rows]
+        assert "CHILD INC" in names
+        assert "LEAF LLC" in names
+        assert "GRANDCHILD CORP" in names
+
+    def test_csv_has_level_or_parent_column(self, recursive_cli_client, tmp_path):
+        """CSV headers should include a 'Level' or 'Parent' column to
+        distinguish hierarchy depth in the flat export."""
+        _run_with_client(
+            ["PARENT CORP", "y", "y", "exit"],
+            recursive_cli_client,
+            tmp_path,
+        )
+        csv_files = list(tmp_path.glob("*.csv"))
+        assert len(csv_files) == 1
+
+        with open(csv_files[0]) as f:
+            reader = csv.reader(f)
+            headers = next(reader)
+
+        # At least one of these columns should be present
+        assert any(
+            col in headers for col in ("Level", "Parent", "Depth")
+        ), f"expected Level/Parent/Depth column in headers: {headers}"
