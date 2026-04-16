@@ -401,3 +401,51 @@ def fetch_subsidiary_tree(
         for sub_name, sub_jurisdiction in subsidiaries
     ]
     return SubsidiaryNode(name=root_name, jurisdiction="", children=children)
+
+
+def find_parent_company(
+    name: str,
+    client: httpx.Client,
+) -> tuple[str, str] | None:
+    """Search for a parent company that lists *name* as a subsidiary.
+
+    Iterates SEC filers from ``company_tickers.json``, fetches each
+    filer's Exhibit 21, and checks if *name* appears as a subsidiary
+    (case-insensitive). Skips the queried company itself.
+
+    Returns ``(parent_title, parent_cik)`` if found, ``None`` otherwise.
+    """
+    resp = client.get("https://www.sec.gov/files/company_tickers.json")
+    resp.raise_for_status()
+    tickers_data = resp.json()
+
+    needle = name.strip().lower()
+
+    # Find the queried company's own CIK so we skip it.
+    own_cik: str | None = None
+    for entry in tickers_data.values():
+        if entry["title"].strip().lower() == needle:
+            own_cik = str(entry["cik_str"]).zfill(10)
+            break
+
+    for entry in tickers_data.values():
+        cik = str(entry["cik_str"]).zfill(10)
+        title = entry["title"]
+
+        if cik == own_cik:
+            continue
+
+        try:
+            accession = latest_10k_accession(cik, client)
+            url = exhibit_21_url(cik, accession, client)
+            ex21_resp = client.get(url)
+            ex21_resp.raise_for_status()
+            subsidiaries = parse_exhibit_21(ex21_resp.text)
+        except Exception:
+            continue
+
+        for sub_name, _jurisdiction in subsidiaries:
+            if sub_name.strip().lower() == needle:
+                return (title, cik)
+
+    return None
