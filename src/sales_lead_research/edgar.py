@@ -186,22 +186,27 @@ def find_exhibit_21(name: str, client: httpx.Client) -> str:
 def search_companies(
     name: str, client: httpx.Client
 ) -> list[tuple[str, str]]:
-    """Search for companies whose title contains ``name`` (case-insensitive).
+    """Search for companies by title substring or ticker symbol (case-insensitive).
 
     Returns a list of ``(company_title, cik_str)`` tuples where ``cik_str``
-    is a zero-padded 10-digit CIK. Raises ``CompanyNotFound`` if no entries
-    match. Used by the CLI to support fuzzy/substring matching and present
-    a numbered disambiguation list when there are multiple hits.
+    is a zero-padded 10-digit CIK. Checks both title (substring) and ticker
+    (exact match), deduplicating by CIK. Raises ``CompanyNotFound`` if no
+    entries match either field.
     """
     resp = client.get("https://www.sec.gov/files/company_tickers.json")
     resp.raise_for_status()
     tickers = resp.json()
 
     needle = name.strip().lower()
+    seen_ciks: set[str] = set()
     matches: list[tuple[str, str]] = []
+
     for entry in tickers.values():
-        if needle in entry["title"].strip().lower():
-            cik = str(entry["cik_str"]).zfill(10)
+        cik = str(entry["cik_str"]).zfill(10)
+        title_match = needle in entry["title"].strip().lower()
+        ticker_match = entry.get("ticker", "").strip().lower() == needle
+        if (title_match or ticker_match) and cik not in seen_ciks:
+            seen_ciks.add(cik)
             matches.append((entry["title"], cik))
 
     if not matches:
