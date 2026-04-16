@@ -139,26 +139,6 @@ def run_repl(
             if not answer:
                 continue
 
-        # Parent resolution: check if this company is a subsidiary
-        try:
-            parent = find_parent_company(company_name, client)
-        except Exception:
-            parent = None
-
-        if parent is not None:
-            parent_name, parent_cik = parent
-            console.print(
-                f"Note: {company_name} appears to be a subsidiary of "
-                f"{parent_name} (CIK: {parent_cik})."
-            )
-            console.print("Show parent's full hierarchy instead? [Y/n]")
-            answer = _confirm(it)
-            if answer is None:
-                return
-            if answer:
-                company_name = parent_name
-                cik = parent_cik
-
         # Gate 2: filing source confirmation
         try:
             accession = latest_10k_accession(cik, client)

@@ -173,7 +173,10 @@ def latest_10k_accession(cik: str, client: httpx.Client) -> str:
     if fallback_20f is not None:
         return fallback_20f
 
-    raise No10KFiled(cik)
+    raise No10KFiled(
+        f"No annual report (10-K or 20-F) found for CIK {cik}. "
+        f"This company may only file quarterly or other report types."
+    )
 
 
 def exhibit_21_url(cik: str, accession: str, client: httpx.Client) -> str:
@@ -196,7 +199,10 @@ def exhibit_21_url(cik: str, accession: str, client: httpx.Client) -> str:
         if doc_type.startswith("EX-21"):
             return urljoin(index_url, href)
 
-    raise NoExhibit21(accession)
+    raise NoExhibit21(
+        f"No Exhibit 21 (subsidiary list) found in filing {accession}. "
+        f"This company's annual report may not include a subsidiary listing."
+    )
 
 
 def find_exhibit_21(name: str, client: httpx.Client) -> str:
@@ -255,9 +261,11 @@ def search_companies(
 
 
 _HEADER_KEYWORDS = frozenset([
-    "name of subsidiary", "subsidiary", "nameofsubsidiary",
+    "name", "name of subsidiary", "subsidiary", "nameofsubsidiary",
     "jurisdiction", "state or jurisdiction", "jurisdictionofincorporation",
     "jurisdictionofincorporationororganization",
+    "whereincorporated", "where incorporated",
+    "stateorcountryofincorporationororganization",
 ])
 
 
@@ -287,10 +295,13 @@ def parse_exhibit_21(html: str) -> list[tuple[str, str]]:
     for table in soup.find_all("table"):
         for row in table.find_all("tr"):
             cells = row.find_all("td")
-            if len(cells) == 2:
-                name = cells[0].get_text(strip=True)
-                jurisdiction = cells[1].get_text(strip=True)
-                if name and jurisdiction and not _is_header_row(name, jurisdiction):
+            # Extract non-empty cell texts to handle 2-col and 3+ col layouts
+            # (some filings use an empty middle column as a spacer)
+            texts = [c.get_text(strip=True) for c in cells]
+            non_empty = [t for t in texts if t]
+            if len(non_empty) == 2:
+                name, jurisdiction = non_empty
+                if not _is_header_row(name, jurisdiction):
                     results.append((name, jurisdiction))
 
     return results
