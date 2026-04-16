@@ -142,7 +142,8 @@ def run_repl(
         console.print(tree)
 
         # CSV export
-        filename = company_name.lower().replace(" ", "_") + "_subsidiaries.csv"
+        safe_name = company_name.lower().replace(" ", "_").replace("/", "_").replace("..", "_")
+        filename = safe_name + "_subsidiaries.csv"
         if output_dir is not None:
             csv_path = output_dir / filename
         else:
