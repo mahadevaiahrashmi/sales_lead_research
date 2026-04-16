@@ -1,0 +1,24 @@
+{
+  "cik": "1048911",
+  "name": "FEDEX CORP",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001048911-24-000045",
+        "0001048911-24-000020"
+      ],
+      "filingDate": [
+        "2024-07-22",
+        "2024-04-15"
+      ],
+      "form": [
+        "10-K",
+        "10-Q"
+      ],
+      "primaryDocument": [
+        "fdx-20240531.htm",
+        "fdx-20240229.htm"
+      ]
+    }
+  }
+}

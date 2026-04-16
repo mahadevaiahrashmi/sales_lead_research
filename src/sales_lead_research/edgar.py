@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "SEC EDGAR lookup: name -> Exhibit 21 URL", deps: ["httpx"], state: active, last: "sato@2026-04-16" }  # noqa: E501
+# agent-notes: { ctx: "SEC EDGAR lookup: name -> Exhibit 21 URL + parse", deps: ["httpx", "beautifulsoup4"], state: active, last: "sato@2026-04-16" }  # noqa: E501
 """SEC EDGAR company lookup — public contract (Sato: implement these).
 
 Pipeline: company name -> CIK -> latest 10-K accession -> Exhibit 21 URL.
@@ -181,3 +181,57 @@ def find_exhibit_21(name: str, client: httpx.Client) -> str:
     cik = resolve_cik(name, client)
     accession = latest_10k_accession(cik, client)
     return exhibit_21_url(cik, accession, client)
+
+
+def search_companies(
+    name: str, client: httpx.Client
+) -> list[tuple[str, str]]:
+    """Search for companies whose title contains ``name`` (case-insensitive).
+
+    Returns a list of ``(company_title, cik_str)`` tuples where ``cik_str``
+    is a zero-padded 10-digit CIK. Raises ``CompanyNotFound`` if no entries
+    match. Used by the CLI to support fuzzy/substring matching and present
+    a numbered disambiguation list when there are multiple hits.
+    """
+    resp = client.get("https://www.sec.gov/files/company_tickers.json")
+    resp.raise_for_status()
+    tickers = resp.json()
+
+    needle = name.strip().lower()
+    matches: list[tuple[str, str]] = []
+    for entry in tickers.values():
+        if needle in entry["title"].strip().lower():
+            cik = str(entry["cik_str"]).zfill(10)
+            matches.append((entry["title"], cik))
+
+    if not matches:
+        raise CompanyNotFound(name)
+
+    return matches
+
+
+def parse_exhibit_21(html: str) -> list[tuple[str, str]]:
+    """Parse an Exhibit 21 HTML page into ``(subsidiary_name, jurisdiction)`` pairs.
+
+    Handles the common table format found in large filers' Exhibit 21 pages.
+    Skips header rows and empty rows. Returns an empty list if no subsidiary
+    data is found.
+    """
+    if not html.strip():
+        return []
+
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    results: list[tuple[str, str]] = []
+
+    for table in soup.find_all("table"):
+        for row in table.find_all("tr"):
+            cells = row.find_all("td")
+            if len(cells) == 2:
+                name = cells[0].get_text(strip=True)
+                jurisdiction = cells[1].get_text(strip=True)
+                if name and jurisdiction:
+                    results.append((name, jurisdiction))
+
+    return results

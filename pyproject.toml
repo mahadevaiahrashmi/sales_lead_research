@@ -5,6 +5,7 @@ version = "0.1.0"
 description = "CLI chat tool that surfaces SEC EDGAR corporate hierarchies for sales leads"
 requires-python = ">=3.12"
 dependencies = [
+    "beautifulsoup4>=4.14.3",
     "httpx>=0.28.1",
     "rich>=13.7",
 ]
