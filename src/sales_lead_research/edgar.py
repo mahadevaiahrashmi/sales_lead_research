@@ -246,7 +246,9 @@ def search_companies(
     if not matches:
         raise CompanyNotFound(
             f'No SEC registrant found matching "{name}". '
-            f"This company may not file with the SEC (non-US parent, private, etc.)."
+            f"This company may not file with the SEC (non-US parent, private, etc.). "
+            f"Try the legal parent name (e.g. 'Deutsche Post' instead of 'DHL', "
+            f"'Samsung Electronics Co' instead of 'Samsung')."
         )
 
     return matches
