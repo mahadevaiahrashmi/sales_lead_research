@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Lead Research - User Flow</title>
+<style>
+  body {
+    background: #FAF7F2;
+    font-family: Inter, system-ui, sans-serif;
+    color: #1A1714;
+    display: flex;
+    justify-content: center;
+    padding: 2rem;
+  }
+  .mermaid {
+    max-width: 1000px;
+  }
+</style>
+</head>
+<body>
+<div class="mermaid">
+flowchart TD
+    Start([User enters query]) --> NLQ{Natural language?}
+
+    NLQ -->|"show me Apple's subsidiaries"| Extract[Extract company name]
+    NLQ -->|"Apple" / "AAPL"| Direct[Use as-is]
+
+    Extract --> Search
+    Direct --> Search
+
+    Search[Search SEC EDGAR\ncompany_tickers.json] --> Found{Matches found?}
+
+    Found -->|None| WebPrompt[Offer web search fallback]
+    Found -->|Single match| Confirm1{User confirms\ncompany?}
+    Found -->|Multiple matches| Disambig[Show numbered list]
+
+    WebPrompt -->|Yes| WebSearch[Search web for\nannual report]
+    WebPrompt -->|No| Start
+
+    WebSearch --> WebResult{Structure found?}
+    WebResult -->|Yes| WebDisplay[Display divisions /\nsubsidiaries from web]
+    WebResult -->|No| NotFound[Show 'not found' message\nSuggest legal parent name]
+    NotFound --> Start
+    WebDisplay --> Start
+
+    Disambig --> Pick[User picks a company] --> Confirm1
+
+    Confirm1 -->|Yes| Gate2[Fetch 10-K / 20-F filing\nFind Exhibit 21 URL]
+    Confirm1 -->|No| Start
+
+    Gate2 --> HasFiling{Filing found?}
+    HasFiling -->|No| FileError[Show error message\ne.g. no Exhibit 21]
+    FileError --> Start
+
+    HasFiling -->|Yes| Confirm2{User confirms\nfiling source?}
+    Confirm2 -->|No| Start
+    Confirm2 -->|Yes| BuildTree[Fetch & parse Exhibit 21\nBuild recursive subsidiary tree]
+
+    BuildTree --> Render[Render rich tree in terminal\nor table in web UI]
+    Render --> Export[Export CSV file]
+    Export --> Done([Display results\nReturn to prompt])
+    Done --> Start
+
+    style Start fill:#D97757,color:#fff,stroke:#C4613F
+    style Done fill:#D97757,color:#fff,stroke:#C4613F
+    style Search fill:#F5F0E8,stroke:#DDD4C4
+    style WebSearch fill:#F5F0E8,stroke:#DDD4C4
+    style BuildTree fill:#F5F0E8,stroke:#DDD4C4
+    style Render fill:#F5F0E8,stroke:#DDD4C4
+    style Export fill:#F5F0E8,stroke:#DDD4C4
+    style Gate2 fill:#F5F0E8,stroke:#DDD4C4
+    style Extract fill:#F5F0E8,stroke:#DDD4C4
+    style Direct fill:#F5F0E8,stroke:#DDD4C4
+    style WebDisplay fill:#F5F0E8,stroke:#DDD4C4
+    style NotFound fill:#FDF4EE,stroke:#E49A6A
+    style FileError fill:#FDF4EE,stroke:#E49A6A
+    style Disambig fill:#F5F0E8,stroke:#DDD4C4
+    style Pick fill:#F5F0E8,stroke:#DDD4C4
+    style WebPrompt fill:#F5F0E8,stroke:#DDD4C4
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#F5F0E8',
+      primaryTextColor: '#1A1714',
+      primaryBorderColor: '#DDD4C4',
+      lineColor: '#B0A48C',
+      secondaryColor: '#FDF4EE',
+      tertiaryColor: '#FFFFFF',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '14px'
+    }
+  });
+</script>
+</body>
+</html>
