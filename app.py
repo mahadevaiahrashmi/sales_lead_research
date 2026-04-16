@@ -27,6 +27,42 @@ from sales_lead_research.edgar import (
 USER_AGENT = "Sales Lead Research (mahadevaiah.rashmi@gmail.com)"
 
 
+import re
+
+_NL_PATTERNS = [
+    # "show me X's subsidiaries", "show X subsidiaries"
+    re.compile(r"(?:show|list|get|find|look\s*up|fetch|pull|display)\s+(?:me\s+)?(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies|child\s+companies)", re.I),
+    # "what are X's subsidiaries", "what companies does X own"
+    re.compile(r"(?:what|which)\s+(?:are|companies?\s+(?:does|do))\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|own|have)", re.I),
+    # "who does X own", "who are X's subsidiaries"
+    re.compile(r"who\s+(?:does|do|are)\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:own|subsidiaries)", re.I),
+    # "subsidiaries of X", "hierarchy of X", "corporate structure of X"
+    re.compile(r"(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies)\s+(?:of|for|under)\s+(?:the\s+)?(.+)", re.I),
+    # "tell me about X", "search for X", "look up X"
+    re.compile(r"(?:tell\s+me\s+about|search\s+(?:for)?|look\s*up|info\s+(?:on|about|for))\s+(?:the\s+)?(.+)", re.I),
+]
+
+
+def extract_company_name(query: str) -> str:
+    """Extract a company name from a natural language query.
+
+    If the query matches a known pattern, returns the extracted company
+    name. Otherwise returns the original query unchanged, so plain
+    company names still work.
+    """
+    query = query.strip()
+    if not query:
+        return query
+
+    for pattern in _NL_PATTERNS:
+        m = pattern.search(query)
+        if m:
+            return m.group(1).strip().rstrip("?!")
+
+    # Strip trailing question marks / punctuation from plain queries
+    return query.rstrip("?!")
+
+
 def search(company_name: str) -> tuple[list[list[str]], str]:
     """Search for a company by name. Returns (matches_table, status_message)."""
     if not company_name.strip():
@@ -89,6 +125,7 @@ def lookup(company_name: str, cik: str) -> tuple[str, str, list[list[str]], str 
 
 def on_search(company_name: str):
     """Handle the search button click."""
+    company_name = extract_company_name(company_name)
     matches, status = search(company_name)
     if not matches:
         return (
@@ -294,13 +331,13 @@ def build_app() -> gr.Blocks:
         gr.Markdown(
             "# Sales Lead Research\n\n"
             "Look up a company's subsidiaries from its **SEC EDGAR** 10-K Exhibit 21 filing.  \n"
-            "Type a company name or ticker symbol below to get started."
+            "Type a company name, ticker symbol, or ask in plain English."
         )
 
         with gr.Row():
             company_input = gr.Textbox(
-                label="Company Name",
-                placeholder="e.g., FedEx, Apple, AAPL, Microsoft",
+                label="Search",
+                placeholder="e.g., FedEx, AAPL, show me Apple's subsidiaries, who does Microsoft own?",
                 scale=4,
             )
             search_btn = gr.Button("Search", variant="primary", scale=1)

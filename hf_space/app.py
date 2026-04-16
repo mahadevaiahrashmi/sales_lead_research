@@ -154,6 +154,32 @@ def parse_exhibit_21(html: str) -> list[tuple[str, str]]:
 
 
 # ---------------------------------------------------------------------------
+# Natural language query extraction
+# ---------------------------------------------------------------------------
+
+import re
+
+_NL_PATTERNS = [
+    re.compile(r"(?:show|list|get|find|look\s*up|fetch|pull|display)\s+(?:me\s+)?(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies|child\s+companies)", re.I),
+    re.compile(r"(?:what|which)\s+(?:are|companies?\s+(?:does|do))\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|own|have)", re.I),
+    re.compile(r"who\s+(?:does|do|are)\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:own|subsidiaries)", re.I),
+    re.compile(r"(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies)\s+(?:of|for|under)\s+(?:the\s+)?(.+)", re.I),
+    re.compile(r"(?:tell\s+me\s+about|search\s+(?:for)?|look\s*up|info\s+(?:on|about|for))\s+(?:the\s+)?(.+)", re.I),
+]
+
+
+def extract_company_name(query: str) -> str:
+    query = query.strip()
+    if not query:
+        return query
+    for pattern in _NL_PATTERNS:
+        m = pattern.search(query)
+        if m:
+            return m.group(1).strip().rstrip("?!")
+    return query.rstrip("?!")
+
+
+# ---------------------------------------------------------------------------
 # Gradio UI
 # ---------------------------------------------------------------------------
 
@@ -161,6 +187,7 @@ def on_search(company_name: str):
     if not company_name.strip():
         return "Please enter a company name.", gr.update(choices=[], visible=False), gr.update(visible=False)
 
+    company_name = extract_company_name(company_name)
     try:
         matches = search_companies(company_name)
     except CompanyNotFound as e:
@@ -320,17 +347,19 @@ footer {
 
 with gr.Blocks(
     title="Sales Lead Research — SEC EDGAR Subsidiary Lookup",
+    theme=_anthropic_theme(),
+    css=ANTHROPIC_CSS,
 ) as app:
     gr.Markdown(
         "# Sales Lead Research\n\n"
         "Look up a company's subsidiaries from its **SEC EDGAR** 10-K Exhibit 21 filing.  \n"
-        "Type a company name or ticker symbol below to get started."
+        "Type a company name, ticker symbol, or ask in plain English."
     )
 
     with gr.Row():
         company_input = gr.Textbox(
-            label="Company Name",
-            placeholder="e.g., FedEx, Apple, AAPL, Microsoft",
+            label="Search",
+            placeholder="e.g., FedEx, AAPL, show me Apple's subsidiaries, who does Microsoft own?",
             scale=4,
         )
         search_btn = gr.Button("Search", variant="primary", scale=1)
@@ -388,4 +417,4 @@ with gr.Blocks(
     )
 
 if __name__ == "__main__":
-    app.launch(theme=_anthropic_theme(), css=ANTHROPIC_CSS)
+    app.launch()

@@ -13,6 +13,7 @@ rendering of subsidiaries, and CSV export.
 from __future__ import annotations
 
 import csv
+import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import TextIO
@@ -33,6 +34,26 @@ from sales_lead_research.edgar import (
 )
 
 PLACEHOLDER_CHILD = "(subsidiary data unavailable - SEC lookup not yet implemented)"
+
+_NL_PATTERNS = [
+    re.compile(r"(?:show|list|get|find|look\s*up|fetch|pull|display)\s+(?:me\s+)?(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies|child\s+companies)", re.I),
+    re.compile(r"(?:what|which)\s+(?:are|companies?\s+(?:does|do))\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|own|have)", re.I),
+    re.compile(r"who\s+(?:does|do|are)\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:own|subsidiaries)", re.I),
+    re.compile(r"(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies)\s+(?:of|for|under)\s+(?:the\s+)?(.+)", re.I),
+    re.compile(r"(?:tell\s+me\s+about|search\s+(?:for)?|look\s*up|info\s+(?:on|about|for))\s+(?:the\s+)?(.+)", re.I),
+]
+
+
+def extract_company_name(query: str) -> str:
+    """Extract a company name from a natural language query."""
+    query = query.strip()
+    if not query:
+        return query
+    for pattern in _NL_PATTERNS:
+        m = pattern.search(query)
+        if m:
+            return m.group(1).strip().rstrip("?!")
+    return query.rstrip("?!")
 
 
 def _next_line(it: iter) -> str | None:
@@ -71,6 +92,8 @@ def run_repl(
             return
         if not line:
             continue
+
+        line = extract_company_name(line)
 
         if client is None:
             # Placeholder mode (original issue #1 behavior)
