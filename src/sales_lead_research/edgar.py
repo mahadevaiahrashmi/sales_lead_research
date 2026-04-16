@@ -205,7 +205,10 @@ def search_companies(
             matches.append((entry["title"], cik))
 
     if not matches:
-        raise CompanyNotFound(name)
+        raise CompanyNotFound(
+            f'No SEC registrant found matching "{name}". '
+            f"This company may not file with the SEC (non-US parent, private, etc.)."
+        )
 
     return matches
 
