@@ -23,6 +23,7 @@ from sales_lead_research.edgar import (
     parse_exhibit_21,
     search_companies,
 )
+from sales_lead_research.web_fallback import web_search_subsidiaries
 
 USER_AGENT = "Sales Lead Research (mahadevaiah.rashmi@gmail.com)"
 
@@ -123,19 +124,50 @@ def lookup(company_name: str, cik: str) -> tuple[str, str, list[list[str]], str 
     return info, url, table, str(csv_path)
 
 
-def on_search(company_name: str):
-    """Handle the search button click."""
-    company_name = extract_company_name(company_name)
-    matches, status = search(company_name)
-    if not matches:
+def _web_fallback(company_name: str):
+    """Run web search fallback and return Gradio outputs."""
+    client = build_client(USER_AGENT)
+    result = web_search_subsidiaries(company_name, client)
+
+    if not result or (not result.get("parent") and not result.get("subsidiaries")):
         return (
-            status,
+            f'No SEC filing or web data found for "{company_name}".',
             gr.update(choices=[], value=None, visible=False),
             gr.update(visible=False),
             gr.update(value=None, visible=False),
             gr.update(value=None, visible=False),
             gr.update(value=None, visible=False),
         )
+
+    parent = result.get("parent", "")
+    subs = result.get("subsidiaries", [])
+    source = result.get("source", "")
+
+    heading = parent or company_name
+    info_parts = [f"**{heading}** — {len(subs)} divisions/subsidiaries (web search)"]
+    if source:
+        info_parts.append(f"\n\n[Source]({source})")
+    info = "".join(info_parts)
+
+    table = [[s, ""] for s in subs] if subs else []
+
+    return (
+        f"Not an SEC filer. Showing web search results for **{company_name}**.",
+        gr.update(choices=[], value=None, visible=False),
+        gr.update(visible=False),
+        gr.update(value=info, visible=True),
+        gr.update(value=table, visible=True) if table else gr.update(visible=False),
+        gr.update(value=None, visible=False),
+    )
+
+
+def on_search(company_name: str):
+    """Handle the search button click."""
+    company_name = extract_company_name(company_name)
+    matches, status = search(company_name)
+    if not matches:
+        # Fall back to web search for non-SEC filers
+        return _web_fallback(company_name)
 
     if len(matches) == 1:
         # Auto-select the single match and fetch immediately

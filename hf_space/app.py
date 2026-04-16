@@ -180,6 +180,123 @@ def extract_company_name(query: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Web search fallback for non-SEC filers
+# ---------------------------------------------------------------------------
+
+from urllib.parse import quote_plus, unquote
+
+
+def _web_search_subsidiaries(company_name: str) -> dict:
+    """Search the web for a non-SEC company's corporate structure."""
+    query = quote_plus(f"{company_name} annual report subsidiaries parent company corporate structure")
+    search_url = f"https://html.duckduckgo.com/html/?q={query}"
+
+    try:
+        search_client = httpx.Client(
+            headers={"User-Agent": "Mozilla/5.0 (compatible)"},
+            follow_redirects=True, timeout=15,
+        )
+        resp = search_client.get(search_url)
+        resp.raise_for_status()
+    except Exception:
+        return {}
+
+    # Extract URLs from DDG results
+    uddg_urls = re.findall(r'uddg=(https?[^&"]+)', resp.text)
+    seen, urls = set(), []
+    for raw in uddg_urls:
+        u = unquote(raw)
+        if u not in seen:
+            seen.add(u)
+            urls.append(u)
+
+    # Prioritize official company pages over Wikipedia
+    def _priority(url):
+        ul = url.lower()
+        if "wikipedia" in ul or "scribd" in ul:
+            return 3
+        if any(kw in ul for kw in ["division", "structure", "about", "corporate"]):
+            return 0
+        if any(kw in ul for kw in ["annual", "investor", "reporting"]):
+            return 1
+        return 2
+
+    promising = [u for u in urls if not u.lower().endswith(".pdf")]
+    promising.sort(key=_priority)
+
+    fetch_client = httpx.Client(
+        headers={"User-Agent": "Mozilla/5.0 (compatible)"},
+        follow_redirects=True, timeout=15,
+    )
+    for url in promising[:5]:
+        try:
+            page_resp = fetch_client.get(url)
+            page_resp.raise_for_status()
+            result = _extract_web_structure(page_resp.text, company_name)
+            if result:
+                result["source"] = url
+                return result
+        except Exception:
+            continue
+    return {}
+
+
+def _extract_web_structure(html: str, company_name: str) -> dict | None:
+    """Extract corporate structure from an HTML page."""
+    soup = BeautifulSoup(html, "html.parser")
+    subsidiaries = []
+
+    # Strategy 1: Tables
+    for table in soup.find_all("table"):
+        for row in table.find_all("tr"):
+            cells = row.find_all(["td", "th"])
+            texts = [c.get_text(strip=True) for c in cells if c.get_text(strip=True)]
+            if len(texts) >= 2:
+                name = texts[0]
+                if name.lower() not in ("name", "company", "subsidiary", "entity", "#", "no."):
+                    if 3 < len(name) < 120 and not name.startswith("http"):
+                        subsidiaries.append(name)
+
+    # Strategy 2: Structured lists under relevant headings
+    if not subsidiaries:
+        for heading in soup.find_all(["h1", "h2", "h3", "h4"]):
+            ht = heading.get_text(strip=True).lower()
+            if any(kw in ht for kw in ["subsidiar", "division", "segment", "structure", "operating"]):
+                for sib in heading.find_next_siblings(["ul", "ol", "table", "div"]):
+                    for li in sib.find_all("li"):
+                        t = li.get_text(strip=True)
+                        if 3 < len(t) < 120:
+                            subsidiaries.append(t)
+                    if subsidiaries:
+                        break
+                break
+
+    # Strategy 3: h3/h4 headings as division names
+    if not subsidiaries:
+        skip = {"downloads", "follow us", "contact", "related", "share", "footer", "menu", "search", "cookie"}
+        in_section = False
+        for tag in soup.find_all(["h1", "h2", "h3", "h4"]):
+            tv = tag.get_text(strip=True)
+            tl = tv.lower()
+            if tag.name in ("h1", "h2"):
+                in_section = any(kw in tl for kw in ["division", "subsidiar", "segment", "business", "companies", "brands"])
+            elif in_section and tag.name in ("h3", "h4"):
+                if tl not in skip and 2 < len(tv) < 100:
+                    subsidiaries.append(tv)
+
+    if not subsidiaries:
+        return None
+
+    seen, unique = set(), []
+    for s in subsidiaries:
+        if s not in seen:
+            seen.add(s)
+            unique.append(s)
+
+    return {"parent": "", "subsidiaries": unique[:50], "summary": f"Web search for {company_name}"}
+
+
+# ---------------------------------------------------------------------------
 # Gradio UI
 # ---------------------------------------------------------------------------
 
@@ -190,8 +307,29 @@ def on_search(company_name: str):
     company_name = extract_company_name(company_name)
     try:
         matches = search_companies(company_name)
-    except CompanyNotFound as e:
-        return str(e), gr.update(choices=[], visible=False), gr.update(visible=False)
+    except CompanyNotFound:
+        # Fall back to web search
+        result = _web_search_subsidiaries(company_name)
+        if result and result.get("subsidiaries"):
+            subs = result["subsidiaries"]
+            source = result.get("source", "")
+            info = f"**{company_name}** — {len(subs)} divisions/subsidiaries (web search)"
+            if source:
+                info += f"\n\n[Source]({source})"
+            table_data = [[s, ""] for s in subs]
+            return (
+                f"Not an SEC filer. Showing web results for **{company_name}**.",
+                gr.update(choices=[], visible=False),
+                gr.update(visible=False),
+                info,
+                gr.update(value=table_data, visible=True),
+                gr.update(visible=False),
+            )
+        return (
+            f'No SEC filing or web data found for "{company_name}".',
+            gr.update(choices=[], visible=False),
+            gr.update(visible=False),
+        )
     except Exception as e:
         return f"Error: {e}", gr.update(choices=[], visible=False), gr.update(visible=False)
 
@@ -385,7 +523,11 @@ with gr.Blocks(
 
     # Search event
     def do_search(name):
-        status, dropdown_update, btn_update = on_search(name)
+        result = on_search(name)
+        if len(result) == 6:
+            # Web fallback returned full 6-tuple
+            return result
+        status, dropdown_update, btn_update = result
         return status, dropdown_update, btn_update, "", gr.update(visible=False), gr.update(visible=False)
 
     search_btn.click(
