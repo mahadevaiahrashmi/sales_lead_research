@@ -81,6 +81,11 @@ class _FilingIndexParser(HTMLParser):
         self._current_href: str | None = None
         self._cells: list[str] = []
         self._rows: list[tuple[str, str]] = []  # (type, href)
+
+    @property
+    def rows(self) -> list[tuple[str, str]]:
+        """Parsed document rows as (type, href) pairs."""
+        return self._rows
         self._current_text = ""
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -150,6 +155,8 @@ def latest_10k_accession(cik: str, client: httpx.Client) -> str:
 
 
 def exhibit_21_url(cik: str, accession: str, client: httpx.Client) -> str:
+    # int(cik) ensures only digits survive — guards against injection via
+    # user-controlled strings flowing into the URL template.
     cik_int = str(int(cik))
     accession_no_dashes = accession.replace("-", "")
     index_url = (
@@ -163,7 +170,7 @@ def exhibit_21_url(cik: str, accession: str, client: httpx.Client) -> str:
     parser = _FilingIndexParser()
     parser.feed(resp.text)
 
-    for doc_type, href in parser._rows:
+    for doc_type, href in parser.rows:
         if doc_type.startswith("EX-21"):
             return urljoin(index_url, href)
 

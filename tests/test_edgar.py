@@ -138,12 +138,9 @@ class TestUserAgentCompliance:
             return httpx.Response(200, content=_fixture("company_tickers.json"))
 
         ua = "Sales Lead Research (compliance-test@example.com)"
-        c = build_client(ua)
-        c._transport = httpx.MockTransport(capturing_handler)
-        try:
-            resolve_cik("Apple Inc.", c)
-        except NotImplementedError:
-            pytest.skip("resolve_cik not implemented yet")
+        transport = httpx.MockTransport(capturing_handler)
+        c = httpx.Client(transport=transport, headers={"User-Agent": ua})
+        resolve_cik("Apple Inc.", c)
 
         assert len(captured_headers) > 0
         for headers in captured_headers:
