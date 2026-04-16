@@ -8,5 +8,6 @@
   "6": {"cik_str": 1048911, "ticker": "FDX", "title": "FEDEX CORP"},
   "7": {"cik_str": 1048912, "ticker": "FDXG", "title": "FEDEX GROUND INC"},
   "8": {"cik_str": 9999999, "ticker": "PRNT", "title": "PARENT CORP"},
-  "9": {"cik_str": 8888888, "ticker": "CHLD", "title": "CHILD INC"}
+  "9": {"cik_str": 8888888, "ticker": "CHLD", "title": "CHILD INC"},
+  "10": {"cik_str": 7777777, "ticker": "TM", "title": "TOYOTA MOTOR CORP"}
 }

@@ -162,9 +162,16 @@ def latest_10k_accession(cik: str, client: httpx.Client) -> str:
     data = resp.json()
 
     recent = data["filings"]["recent"]
+    # Prefer 10-K; fall back to 20-F for foreign private issuers.
+    fallback_20f: str | None = None
     for acc, form in zip(recent["accessionNumber"], recent["form"]):
         if form == "10-K":
             return acc
+        if form == "20-F" and fallback_20f is None:
+            fallback_20f = acc
+
+    if fallback_20f is not None:
+        return fallback_20f
 
     raise No10KFiled(cik)
 

@@ -1,0 +1,24 @@
+{
+  "cik": "7777777",
+  "name": "TOYOTA MOTOR CORP",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0007777777-24-000010",
+        "0007777777-24-000005"
+      ],
+      "filingDate": [
+        "2024-06-28",
+        "2024-03-15"
+      ],
+      "form": [
+        "20-F",
+        "6-K"
+      ],
+      "primaryDocument": [
+        "tm-20240331.htm",
+        "tm-20240101.htm"
+      ]
+    }
+  }
+}

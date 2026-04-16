@@ -159,8 +159,9 @@ def _run_with_client(lines, edgar_client, tmp_path=None):
 
 class TestFuzzyNameResolution:
     def test_substring_match_resolves_fedex(self, edgar_client):
-        """Typing 'fedex' should match 'FEDEX CORP' via substring search."""
-        output = _run_with_client(["fedex", "y", "y", "exit"], edgar_client)
+        """Typing 'fedex' should match 'FEDEX CORP' via substring search.
+        Multiple matches trigger a numbered list; pick option 1."""
+        output = _run_with_client(["fedex", "1", "y", "y", "exit"], edgar_client)
         assert "FEDEX CORP" in output
 
     def test_multiple_matches_shows_numbered_list(self, edgar_client):
