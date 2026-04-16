@@ -210,6 +210,21 @@ def search_companies(
     return matches
 
 
+_HEADER_KEYWORDS = frozenset([
+    "name of subsidiary", "subsidiary", "nameofsubsidiary",
+    "jurisdiction", "state or jurisdiction", "jurisdictionofincorporation",
+    "jurisdictionofincorporationororganization",
+])
+
+
+def _is_header_row(name: str, jurisdiction: str) -> bool:
+    """Return True if the row looks like a table header, not data."""
+    return (
+        name.lower().replace(" ", "") in _HEADER_KEYWORDS
+        or jurisdiction.lower().replace(" ", "") in _HEADER_KEYWORDS
+    )
+
+
 def parse_exhibit_21(html: str) -> list[tuple[str, str]]:
     """Parse an Exhibit 21 HTML page into ``(subsidiary_name, jurisdiction)`` pairs.
 
@@ -231,7 +246,7 @@ def parse_exhibit_21(html: str) -> list[tuple[str, str]]:
             if len(cells) == 2:
                 name = cells[0].get_text(strip=True)
                 jurisdiction = cells[1].get_text(strip=True)
-                if name and jurisdiction:
+                if name and jurisdiction and not _is_header_row(name, jurisdiction):
                     results.append((name, jurisdiction))
 
     return results
