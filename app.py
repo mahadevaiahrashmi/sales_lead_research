@@ -158,22 +158,149 @@ def on_select(selection: str):
     )
 
 
+def _anthropic_theme() -> gr.themes.Base:
+    """Build a Gradio theme matching Anthropic's website aesthetic."""
+    return gr.themes.Base(
+        primary_hue=gr.themes.Color(
+            c50="#FDF4EE",
+            c100="#FBEADB",
+            c200="#F5D0B4",
+            c300="#EFB68D",
+            c400="#E49A6A",
+            c500="#D97757",
+            c600="#C4613F",
+            c700="#A34D32",
+            c800="#823D28",
+            c900="#6B3222",
+            c950="#4A2116",
+            name="anthropic_terracotta",
+        ),
+        secondary_hue=gr.themes.Color(
+            c50="#FAF7F2",
+            c100="#F5F0E8",
+            c200="#EBE4D8",
+            c300="#DDD4C4",
+            c400="#C9BDA8",
+            c500="#B0A48C",
+            c600="#968870",
+            c700="#7A6E59",
+            c800="#5E5545",
+            c900="#463F33",
+            c950="#2D2924",
+            name="anthropic_sand",
+        ),
+        neutral_hue=gr.themes.Color(
+            c50="#FAF7F2",
+            c100="#F5F0E8",
+            c200="#EBE4D8",
+            c300="#DDD4C4",
+            c400="#C9BDA8",
+            c500="#B0A48C",
+            c600="#968870",
+            c700="#7A6E59",
+            c800="#5E5545",
+            c900="#463F33",
+            c950="#1A1714",
+            name="anthropic_neutral",
+        ),
+        font=[
+            gr.themes.GoogleFont("Inter"),
+            "ui-sans-serif",
+            "system-ui",
+            "sans-serif",
+        ],
+        font_mono=[
+            gr.themes.GoogleFont("JetBrains Mono"),
+            "ui-monospace",
+            "monospace",
+        ],
+        radius_size=gr.themes.sizes.radius_md,
+        spacing_size=gr.themes.sizes.spacing_lg,
+    ).set(
+        body_background_fill="#FAF7F2",
+        body_background_fill_dark="#1A1714",
+        body_text_color="#1A1714",
+        body_text_color_dark="#F5F0E8",
+        body_text_color_subdued="#5E5545",
+        background_fill_primary="#FFFFFF",
+        background_fill_primary_dark="#2D2924",
+        background_fill_secondary="#F5F0E8",
+        background_fill_secondary_dark="#463F33",
+        border_color_primary="#EBE4D8",
+        border_color_primary_dark="#5E5545",
+        block_background_fill="#FFFFFF",
+        block_background_fill_dark="#2D2924",
+        block_border_color="#EBE4D8",
+        block_border_width="1px",
+        block_label_text_color="#5E5545",
+        block_label_text_size="sm",
+        block_shadow="0 1px 3px 0 rgba(26, 23, 20, 0.06)",
+        block_title_text_color="#1A1714",
+        button_primary_background_fill="#D97757",
+        button_primary_background_fill_hover="#C4613F",
+        button_primary_text_color="#FFFFFF",
+        button_primary_border_color="#D97757",
+        button_primary_shadow="none",
+        button_secondary_background_fill="#F5F0E8",
+        button_secondary_background_fill_hover="#EBE4D8",
+        button_secondary_text_color="#1A1714",
+        button_secondary_border_color="#DDD4C4",
+        input_background_fill="#FFFFFF",
+        input_background_fill_dark="#2D2924",
+        input_border_color="#DDD4C4",
+        input_border_color_focus="#D97757",
+        input_shadow="none",
+        input_shadow_focus="0 0 0 2px rgba(217, 119, 87, 0.2)",
+        table_even_background_fill="#FAF7F2",
+        table_odd_background_fill="#FFFFFF",
+        table_border_color="#EBE4D8",
+        panel_background_fill="#FFFFFF",
+        panel_border_color="#EBE4D8",
+    )
+
+
+ANTHROPIC_CSS = """
+.gradio-container {
+    max-width: 960px !important;
+    margin: 0 auto !important;
+}
+.prose h1 {
+    color: #1A1714 !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.02em !important;
+}
+.prose p, .prose li {
+    color: #5E5545 !important;
+    line-height: 1.7 !important;
+}
+.prose a {
+    color: #D97757 !important;
+    text-decoration: none !important;
+}
+.prose a:hover {
+    text-decoration: underline !important;
+}
+footer {
+    display: none !important;
+}
+"""
+
+
 def build_app() -> gr.Blocks:
     """Build the Gradio app."""
     with gr.Blocks(
         title="Sales Lead Research — SEC EDGAR Subsidiary Lookup",
-        theme=gr.themes.Soft(),
     ) as app:
         gr.Markdown(
-            "# Sales Lead Research\n"
-            "Look up a company's subsidiaries from its SEC EDGAR 10-K Exhibit 21 filing.\n"
-            "Type a company name below to get started."
+            "# Sales Lead Research\n\n"
+            "Look up a company's subsidiaries from its **SEC EDGAR** 10-K Exhibit 21 filing.  \n"
+            "Type a company name or ticker symbol below to get started."
         )
 
         with gr.Row():
             company_input = gr.Textbox(
                 label="Company Name",
-                placeholder="e.g., FedEx, Apple, Microsoft",
+                placeholder="e.g., FedEx, Apple, AAPL, Microsoft",
                 scale=4,
             )
             search_btn = gr.Button("Search", variant="primary", scale=1)
@@ -186,7 +313,7 @@ def build_app() -> gr.Blocks:
             visible=False,
             interactive=True,
         )
-        select_btn = gr.Button("Look Up Subsidiaries", visible=False)
+        select_btn = gr.Button("Look Up Subsidiaries", visible=False, variant="secondary")
 
         info_text = gr.Markdown(value=None, visible=False)
 
@@ -221,4 +348,4 @@ def build_app() -> gr.Blocks:
 
 if __name__ == "__main__":
     app = build_app()
-    app.launch()
+    app.launch(theme=_anthropic_theme(), css=ANTHROPIC_CSS)
