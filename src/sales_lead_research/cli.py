@@ -23,6 +23,7 @@ from rich.console import Console
 from rich.tree import Tree
 
 from sales_lead_research.edgar import (
+    CompanyNotFound,
     EdgarLookupError,
     SubsidiaryNode,
     exhibit_21_url,
@@ -32,6 +33,7 @@ from sales_lead_research.edgar import (
     parse_exhibit_21,
     search_companies,
 )
+from sales_lead_research.web_fallback import web_search_subsidiaries
 
 PLACEHOLDER_CHILD = "(subsidiary data unavailable - SEC lookup not yet implemented)"
 
@@ -105,6 +107,33 @@ def run_repl(
         # --- EDGAR integration flow ---
         try:
             matches = search_companies(line, client)
+        except CompanyNotFound as exc:
+            console.print(str(exc))
+            console.print("Search the web for this company's annual report? [Y/n]")
+            answer = _confirm(it)
+            if answer is None:
+                return
+            if answer:
+                console.print(f"Searching the web for {line}...")
+                result = web_search_subsidiaries(line, client)
+                if result and (result.get("parent") or result.get("subsidiaries")):
+                    if result.get("parent"):
+                        console.print(f"Parent company: {result['parent']}")
+                    subs = result.get("subsidiaries", [])
+                    if subs:
+                        tree = Tree(result.get("parent") or line)
+                        for sub in subs:
+                            tree.add(sub)
+                        console.print(tree)
+                        console.print(f"({len(subs)} subsidiaries/divisions found)")
+                    if result.get("source"):
+                        console.print(f"Source: {result['source']}")
+                else:
+                    console.print(
+                        "No corporate structure data found via web search. "
+                        "Try searching for the company's legal parent name directly."
+                    )
+            continue
         except EdgarLookupError as exc:
             console.print(str(exc))
             continue
