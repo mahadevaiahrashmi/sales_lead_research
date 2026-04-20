@@ -171,5 +171,6 @@ Run `/sprint-boundary` when all sprint items are Done or deferred. Full workflow
 ├── .claude/
 │   ├── agents/               # Subagent persona definitions (19 agent files)
 │   └── commands/             # Custom slash commands (27, auto-discovered)
+├── .devcontainer/            # Dev container config (Python 3.12 + uv)
 └── scripts/                  # Automation scripts
 ```
