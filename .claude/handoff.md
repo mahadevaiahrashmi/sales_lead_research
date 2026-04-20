@@ -1,11 +1,11 @@
-<!-- agent-notes: { ctx: "session handoff after v1 product spec + ADR + plan + devcontainer landed", deps: [docs/product-context.md, docs/adrs/0003-sales-assistant-chat-architecture.md, docs/plans/sales-assistant-chat-v1-plan.md, docs/decisions-log.md, .devcontainer/devcontainer.json, data/customers.sqlite], state: active, last: "coordinator@2026-04-20" } -->
+<!-- agent-notes: { ctx: "session handoff after v1 product spec + ADR + plan + devcontainer landed, push + issues done", deps: [docs/product-context.md, docs/adrs/0003-sales-assistant-chat-architecture.md, docs/plans/sales-assistant-chat-v1-plan.md, docs/decisions-log.md, .devcontainer/devcontainer.json, data/customers.sqlite], state: active, last: "coordinator@2026-04-20" } -->
 
 # Session Handoff
 
-**Created:** 2026-04-20
+**Created:** 2026-04-20 (updated 2026-04-20 after push + issue creation)
 **Sprint:** New product expansion — "Sales Assistant Chat (with DB Matching)" v1.
-**Wave:** Pre-Wave (spec + architecture + plan landed this session). Wave 1 of 5 starts next session.
-**Session summary:** Expanded the product from a standalone subsidiary-lookup tool into a chat tool that enriches the subsidiary tree with account IDs from a read-only customer database. Produced product context, ADR-0003 (Accepted), a 5-wave / 13-item implementation plan, a dummy SQLite customer database, and a devcontainer. Committed in three logical commits; not yet pushed.
+**Wave:** Pre-Wave complete. **Wave 1 of 5 is queued and ready to start.**
+**Session summary:** Expanded the product from a standalone subsidiary-lookup tool into a chat tool that enriches the subsidiary tree with account IDs from a read-only customer database. Produced product context, ADR-0003 (Accepted), a 5-wave / 16-item implementation plan, a dummy SQLite customer database, and a devcontainer. Pushed 4 commits. Created and "Ready"-tagged all 16 Wave 1–5 issues on project #5.
 
 ## What Was Done
 
@@ -30,7 +30,7 @@
 - `data/customers.sqlite` is gitignored; the generator is the source of truth.
 
 ### Implementation plan
-- `docs/plans/sales-assistant-chat-v1-plan.md` — 5 waves, 13 work items, TDD-ordered, with acceptance criteria.
+- `docs/plans/sales-assistant-chat-v1-plan.md` — 5 waves, 16 work items (plan prose still says "13" — the numbered labels W1.1…W5.4 are the truth; worth a one-line fix in the plan next session).
 - Architecture Decision Scan confirmed: **no new gated items** — every work item builds on ADR-0003.
 - `docs/tracking/2026-04-20-sales-assistant-chat-plan.md` — phase tracking artifact.
 
@@ -42,13 +42,19 @@
 - `CLAUDE.md` — added `.devcontainer/` to the project-structure tree.
 - `README.md` — new "Development Environment" section.
 
+### Push + issue creation (continuation turn)
+- Pushed 4 commits: `fb15fcf..9822a0c main -> main` (product context + ADR + plan + decisions log + dummy DB generator + devcontainer + prior handoff).
+- Created 16 GitHub issues (#12–#27) on project #5 — one per work item W1.1 … W5.4 — each with a title in conventional-commit style, body linking to the plan/ADR/product-context, added to project #5, and status set to **Ready**.
+- Verified linkage from the issue side (`gh issue view N --json projectItems` confirms each). Note: `gh project item-list` mis-reports `totalCount` — ignore its output; per-issue lookups are ground truth.
+
 ## Current State
 
-- **Branch:** `main` — **3 commits ahead of origin, needs a push.**
-- **Last commit:** `d5c4dd2 chore: add devcontainer for Python 3.12 + uv`
+- **Branch:** `main` — in sync with `origin/main`.
+- **Last commit:** `9822a0c chore: session handoff after chat+DB-matching spec, ADR, plan, and devcontainer`
 - **Uncommitted changes:** none — working tree clean.
 - **Tests:** 163 passing across 10 test files (unchanged; no code touched this session).
-- **Board status:** all 11 items Done. **No issues exist yet for the 13 new work items in the Wave 1-5 plan.** They need to be created before Wave 1 starts (Session Entry Protocol Q1).
+- **Board status:** 11 prior items Done + **16 new items (#12–#27) created 2026-04-20 and set to Ready** for Wave 1–5. Session Entry Protocol Q1 is satisfied.
+- **Issue ↔ work-item map:** #12 W1.1 · #13 W1.2 · #14 W1.3 · #15 W2.1 · #16 W2.2 · #17 W2.3 · #18 W3.1 · #19 W3.2 · #20 W4.1 · #21 W4.2 · #22 W4.3 · #23 W4.4 · #24 W5.1 · #25 W5.2 · #26 W5.3 · #27 W5.4. (Note: the plan doc text says "13 work items" but the breakdown is 3+3+2+4+4 = 16 — numbered labels are authoritative.)
 
 ## Sprint Progress
 
@@ -56,10 +62,10 @@
 - **Current wave:** Pre-Wave — spec/architecture/plan complete.
 - **Issues completed this session:** none (this session produced no code changes, only documents and scaffolding).
 - **Issues remaining in wave:** n/a.
-- **Next wave:** **Wave 1 — Foundation refactor** (3 items, all S/XS):
-  - **W1.1 (S):** Move `edgar.py`, `web_fallback.py`, `cache.py` into `src/sales_lead_research/discovery/` with shim re-exports. All 163 existing tests must stay green.
-  - **W1.2 (S):** Define `discovery/__init__.py` public API (six names listed in ADR-0003 §1). Update internal callers.
-  - **W1.3 (XS):** Remove shims, archive to `archive/legacy-module-shims/`.
+- **Next wave:** **Wave 1 — Foundation refactor** (3 items, all S/XS) — all issues exist and are "Ready":
+  - **#12 W1.1 (S):** Move `edgar.py`, `web_fallback.py`, `cache.py` into `src/sales_lead_research/discovery/` with shim re-exports. All 163 existing tests must stay green.
+  - **#13 W1.2 (S):** Define `discovery/__init__.py` public API (six names listed in ADR-0003 §1). Update internal callers.
+  - **#14 W1.3 (XS):** Remove shims, archive to `archive/legacy-module-shims/`.
 
 ## What To Do Next (in order)
 
@@ -67,11 +73,10 @@
 2. Read `docs/product-context.md` for the 9 confirmed decisions and the expanded vision.
 3. Read `docs/adrs/0003-sales-assistant-chat-architecture.md` — source of truth for the code shape. Do NOT re-litigate the six decisions.
 4. Read `docs/plans/sales-assistant-chat-v1-plan.md` for the full wave breakdown and acceptance criteria.
-5. **Push `main`** — `git push` (three commits: `2b85cc3`, `8d98e42`, `d5c4dd2`).
-6. **Create GitHub issues for the 13 Wave 1-5 work items.** Use the IDs (W1.1 … W5.4), titles, sizes, and owner personas from the plan doc. Add them to project board #5 in "Ready" status. Session Entry Protocol Q1 requires this before implementation.
-7. **Start Wave 1.1** — move the three discovery modules into `src/sales_lead_research/discovery/` with shim re-exports. No behaviour change. Run `uv run pytest` after the move — all 163 tests must still pass. Session Entry Protocol Q3 says "no tests needed first" because this is a pure move with existing regression coverage.
-8. Commit W1.1 on its own. Move its issue In Progress → In Review → Done on the board. Repeat for W1.2 then W1.3.
-9. End the session with `/handoff` — Wave 1 should fit in one session; Wave 2 is a fresh session.
+5. **Fix the plan header count** — one-line edit in `docs/plans/sales-assistant-chat-v1-plan.md` changing "13 work items" to "16 work items" (3+3+2+4+4). Low-priority tidy; do this inline with the first commit or skip.
+6. **Start Wave 1.1 (issue #12).** Move #12 to **In Progress** on the board. Then move `src/sales_lead_research/edgar.py`, `web_fallback.py`, and `cache.py` into a new `src/sales_lead_research/discovery/` subpackage with shim re-exports at the old paths. No behaviour change. Run `uv run pytest` — all 163 tests must still pass. Session Entry Protocol Q3 says "no tests needed first" because this is a pure move with existing regression coverage.
+7. Commit W1.1 on its own with `Closes #12`. Move #12 In Review → Done on the board. Repeat for W1.2 (#13) then W1.3 (#14) per the plan.
+8. End the session with `/handoff` — Wave 1 should fit in one session; Wave 2 is a fresh session.
 
 ## Tracking Artifacts
 
@@ -103,7 +108,4 @@ All reversible; re-open if needed.
   - Archive, don't delete.
   - `gh project` owner quirk — use explicit `--owner mahadevaiahrashmi`.
   - `updateProjectV2Field` GraphQL no longer accepts `projectId`.
-- **Three commits pending push:**
-  - `2b85cc3 docs: product context, ADR-0003, plan, and decisions log for chat + DB matching`
-  - `8d98e42 chore: add dummy customer database generator`
-  - `d5c4dd2 chore: add devcontainer for Python 3.12 + uv`
+- **All commits pushed** (as of 2026-04-20). `main` is in sync with `origin/main`.
