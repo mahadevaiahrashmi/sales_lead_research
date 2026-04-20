@@ -1,0 +1,83 @@
+Level,Entity Name,Jurisdiction,Owned By,Ownership %
+1,Deutsche Post AG (DHL Group),Germany (Bonn),,-
+2,Deutsche Post Beteiligungen Holding GmbH,Germany (Bonn),Deutsche Post AG,100
+2,Deutsche Post DHL Express Holding GmbH,Germany (Schkeuditz),Deutsche Post AG,100
+2,Danzas Holding AG,Switzerland (Basel),Deutsche Post AG,100
+2,DHL eCommerce Holding GmbH,Germany (Bonn),Deutsche Post AG,100
+2,Deutsche Post AG neu,Germany (Bonn),Deutsche Post AG,100
+3,2GTR,Belgium (Etterbeek),DHL Group,100
+3,ABIS GmbH,Germany (Frankfurt/Main),DHL Group,100
+3,Advanced Therapy Logistics and Solutions SAS,France (Tremblay-en-France),DHL Group,100
+3,Agheera GmbH,Germany (Bonn),DHL Group,100
+3,ALTBERG GmbH,Germany (Bonn),DHL Group,100
+3,AO DHL International,Russia (Moscow),DHL Group,100
+3,APM Solutions Sp. z o.o.,Poland (Warsaw),DHL Group,100
+3,AZL GmbH,Germany (Bonn),DHL Group,100
+3,Blue Eagle Consolidation Services GmbH,Germany (Mainz),DHL Group,100
+3,Braid Group (Holdings) Limited,United Kingdom (Renfrew),DHL Group,100
+3,Braid Logistics (UK) Limited,United Kingdom (Renfrew),DHL Group,100
+3,Brandpath Group Limited,United Kingdom (Marlow),DHL Group,90
+3,Brandpath UK Limited,United Kingdom (Marlow),DHL Group,100
+3,Courier Polar Expres, S.L.,Spain (Madrid),DHL Group,100
+3,Cryo Express GmbH,Germany (Leipzig),DHL Group,100
+3,Cryo Express SAS,France (Tremblay-en-France),DHL Group,100
+3,Cryo International SAS,France (Tremblay-en-France),DHL Group,100
+3,CRYOPDP B.V.,Netherlands (Kaatsheuvel),DHL Group,100
+3,CRYPDP Global Services Unipessoal LDA,Portugal (Lisbon),DHL Group,100
+3,CRYOPDP Ireland Limited,Ireland (Dublin),DHL Group,100
+3,CRYOPDP Sp. z o.o.,Poland (Warsaw),DHL Group,100
+3,Brandpath Group Limited (Jersey),United Kingdom (Saint Helier),DHL Group,100
+3,Danmar Lines AG,Switzerland (Basel),DHL Group,100
+3,Danzas Deutschland Holding GmbH,Germany (Frankfurt/Main),DHL Group,100
+3,Danzas Fashion Service Centers B.V.,Netherlands (Waalwijk),DHL Group,100
+3,Danzas Grundstücksverwaltung Frankfurt GmbH,Germany (Frankfurt/Main),DHL Group,100
+3,Danzas Verwaltungs GmbH,Germany (Frankfurt/Main),DHL Group,100
+3,Danzas, S.L.,Spain (San Sebastián),DHL Group,100
+3,De Buren Internationaal B.V.,Netherlands (Hengelo),DHL Group,100
+3,De Buren Afhaalcentrum B.V.,Netherlands (Hengelo),DHL Group,100
+3,De Buren Nederland B.V.,Netherlands (Hengelo),DHL Group,100
+3,De Buren Techniek B.V.,Netherlands (Hengelo),DHL Group,100
+3,Deutsche Post (Komerca) Limited,Ireland (Dublin),DHL Group,100
+3,Deutsche Post Adress Beteiligungsgesellschaft mbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post Adress Geschäftsführungs GmbH,Germany (Bonn),DHL Group,51
+3,Deutsche Post Adress GmbH & Co. KG,Germany (Bonn),DHL Group,51
+3,Deutsche Post Customer Service Center GmbH,Germany (Dusseldorf),DHL Group,100
+3,Deutsche Post DHL Corporate Real Estate Management GmbH & Co. Logistikzentren KG,Germany (Bonn),DHL Group,100
+3,Deutsche Post DHL Real Estate Deutschland GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post DHL Research and Innovation GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post Dialog Solutions GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post Direkt GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post E-POST Solutions GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post Fleet GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post Global Mail (France) SAS,France (Issy-les-Moulineaux),DHL Group,100
+3,Deutsche Post Global Mail (UK) Limited,United Kingdom (Langley),DHL Group,100
+3,Deutsche Post Immobilien GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post InHaus Services GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post International B.V.,Netherlands (Amsterdam),DHL Group,100
+3,Deutsche Post Investments GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post IT Services GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post Mobility GmbH,Germany (Bonn),DHL Group,100
+3,Deutsche Post Reinsurance S.A.,Luxembourg (Luxembourg),DHL Group,100
+3,Deutsche Post Shop Essen GmbH,Germany (Essen),DHL Group,100
+3,Deutsche Post Shop Hannover GmbH,Germany (Hanover),DHL Group,100
+3,Deutsche Post Shop München GmbH,Germany (Munich),DHL Group,100
+3,DHL Express (Germany) GmbH,Germany (Bonn),Deutsche Post DHL Express Holding GmbH,100
+3,DHL Express (UK) Limited,United Kingdom (Hounslow),Deutsche Post DHL Express Holding GmbH,100
+3,DHL Express (India) Pvt. Ltd.,India,DHL Group,100
+3,DHL Express (USA) entities,United States,DHL Group,100
+3,DHL Express (China) entities,China,DHL Group,100
+3,DHL Express (Brazil) Ltda.,Brazil,DHL Group,100
+3,DHL Express (France) SAS,France,DHL Group,100
+3,DHL Express (Netherlands) B.V.,Netherlands,DHL Group,100
+3,DHL Express (Italy) S.r.l.,Italy,DHL Group,100
+3,DHL Express (Poland) Sp. z o.o.,Poland,DHL Group,100
+3,DHL Express (Austria) GmbH,Austria (Guntramsdorf),DHL Group,100
+3,DHL Air (UK) Limited,United Kingdom,DHL Group,50
+3,European Air Transport Leipzig GmbH,Germany,DHL Group,100
+3,DHL Global Forwarding (Germany) GmbH,Germany (Frankfurt),Danzas Holding AG,100
+3,DHL Global Forwarding (UK) Limited,United Kingdom,Danzas Holding AG,100
+3,DHL Global Forwarding (Netherlands) B.V.,Netherlands,Danzas Holding AG,100
+3,DHL eCommerce (Poland) Sp. z o.o.,Poland,DHL eCommerce Holding GmbH,100
+3,DHL Supply Chain entities (Europe, Americas, Asia),Multiple,DHL Group,100
+3,CRYOPDP Group entities,Multiple (France, UK, Netherlands, etc.),DHL Group,100
+3,DHL Distribution Holdings (UK) Ltd.,United Kingdom (Hounslow),DHL Group,100

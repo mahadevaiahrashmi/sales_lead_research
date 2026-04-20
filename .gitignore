@@ -50,6 +50,11 @@ ehthumbs.db
 
 # Claude Code machine-specific memory
 .claude/projects/
+.claude/statusline.sh
+
+# Sales Lead Research tool output
+*_subsidiaries.csv
+uat-out/
 
 # Package manager lockfiles (uncomment the one you DON'T use)
 # package-lock.json
