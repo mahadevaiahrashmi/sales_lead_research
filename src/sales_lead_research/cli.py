@@ -117,17 +117,30 @@ def run_repl(
                 console.print(f"Searching the web for {line}...")
                 result = web_search_subsidiaries(line, client)
                 if result and (result.get("parent") or result.get("subsidiaries")):
+                    root_name = result.get("parent") or line
                     if result.get("parent"):
                         console.print(f"Parent company: {result['parent']}")
-                    subs = result.get("subsidiaries", [])
+                    subs: list[tuple[str, str]] = result.get("subsidiaries", [])
                     if subs:
-                        tree = Tree(result.get("parent") or line)
-                        for sub in subs:
-                            tree.add(sub)
+                        tree = Tree(root_name)
+                        for sub_name, jurisdiction in subs:
+                            label = f"{sub_name} ({jurisdiction})" if jurisdiction else sub_name
+                            tree.add(label)
                         console.print(tree)
                         console.print(f"({len(subs)} subsidiaries/divisions found)")
                     if result.get("source"):
                         console.print(f"Source: {result['source']}")
+
+                    if subs:
+                        safe_name = root_name.lower().replace(" ", "_").replace("/", "_").replace("..", "_")
+                        filename = safe_name + "_subsidiaries.csv"
+                        csv_path = (output_dir / filename) if output_dir is not None else Path(filename)
+                        with open(csv_path, "w", newline="") as f:
+                            writer = csv.writer(f)
+                            writer.writerow(["Subsidiary Name", "Jurisdiction", "Level"])
+                            for sub_name, jurisdiction in subs:
+                                writer.writerow([sub_name, jurisdiction, 1])
+                        console.print(f"Saved to {filename} ({len(subs)} subsidiaries)")
                 else:
                     console.print(
                         "No corporate structure data found via web search. "

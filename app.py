@@ -140,7 +140,7 @@ def _web_fallback(company_name: str):
         )
 
     parent = result.get("parent", "")
-    subs = result.get("subsidiaries", [])
+    subs: list[tuple[str, str]] = result.get("subsidiaries", [])
     source = result.get("source", "")
 
     heading = parent or company_name
@@ -149,7 +149,18 @@ def _web_fallback(company_name: str):
         info_parts.append(f"\n\n[Source]({source})")
     info = "".join(info_parts)
 
-    table = [[s, ""] for s in subs] if subs else []
+    table = [[name, jurisdiction] for name, jurisdiction in subs] if subs else []
+
+    csv_path: str | None = None
+    if subs:
+        safe_name = (parent or company_name).lower().replace(" ", "_").replace("/", "_").replace("..", "_")
+        out_path = Path(tempfile.gettempdir()) / f"{safe_name}_subsidiaries.csv"
+        with open(out_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Subsidiary Name", "Jurisdiction"])
+            for name, jurisdiction in subs:
+                writer.writerow([name, jurisdiction])
+        csv_path = str(out_path)
 
     return (
         f"Not an SEC filer. Showing web search results for **{company_name}**.",
@@ -157,7 +168,7 @@ def _web_fallback(company_name: str):
         gr.update(visible=False),
         gr.update(value=info, visible=True),
         gr.update(value=table, visible=True) if table else gr.update(visible=False),
-        gr.update(value=None, visible=False),
+        gr.update(value=csv_path, visible=True) if csv_path else gr.update(visible=False),
     )
 
 

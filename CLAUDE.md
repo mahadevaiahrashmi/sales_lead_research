@@ -60,6 +60,9 @@ Every non-excluded file must have agent-notes metadata. See `docs/methodology/ag
 
 ## Critical Rules
 
+### Talk to the user in plain English
+Explain everything in plain, everyday English. Avoid jargon, framework names, code-internals terminology, and three-letter acronyms (SEC, CLI, REPL, API, etc.) unless the user used the term first. When a technical term is unavoidable, define it the first time it appears. Prefer short sentences and concrete nouns ("the tool looks up...", "the annual-report page", "the list we save to a spreadsheet") over abstract nouns ("the pipeline", "the extraction layer"). This rule applies to every user-facing response, including recaps, summaries, and explanations — not just "explain this" asks.
+
 ### Session Entry Protocol (Mandatory)
 Before writing any code — including types, tests, or ADRs — answer these three questions:
 1. **Do work items exist for this work?** If no → create them (Pat + Grace).

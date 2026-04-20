@@ -188,7 +188,7 @@ from urllib.parse import quote_plus, unquote
 
 def _web_search_subsidiaries(company_name: str) -> dict:
     """Search the web for a non-SEC company's corporate structure."""
-    query = quote_plus(f"{company_name} annual report subsidiaries parent company corporate structure")
+    query = quote_plus(f"{company_name} annual report list of subsidiaries shareholdings")
     search_url = f"https://html.duckduckgo.com/html/?q={query}"
 
     try:
@@ -210,16 +210,21 @@ def _web_search_subsidiaries(company_name: str) -> dict:
             seen.add(u)
             urls.append(u)
 
-    # Prioritize official company pages over Wikipedia
     def _priority(url):
         ul = url.lower()
-        if "wikipedia" in ul or "scribd" in ul:
-            return 3
-        if any(kw in ul for kw in ["division", "structure", "about", "corporate"]):
+        if any(kw in ul for kw in
+               ["list-of-subsidiaries", "group-structure", "consolidated-entities",
+                "annual-report", "annualreport"]):
             return 0
-        if any(kw in ul for kw in ["annual", "investor", "reporting"]):
+        if any(kw in ul for kw in ["division", "structure", "corporate", "group"]):
             return 1
-        return 2
+        if any(kw in ul for kw in ["annual", "investor", "reporting", "about"]):
+            return 2
+        if "wikipedia" in ul:
+            return 4
+        if "scribd" in ul:
+            return 5
+        return 3
 
     promising = [u for u in urls if not u.lower().endswith(".pdf")]
     promising.sort(key=_priority)
@@ -241,10 +246,27 @@ def _web_search_subsidiaries(company_name: str) -> dict:
     return {}
 
 
+_JURISDICTION_RE = re.compile(
+    r"\b(?:germany|france|united states|usa|u\.s\.a\.|uk|united kingdom|"
+    r"japan|china|india|netherlands|switzerland|spain|italy|canada|mexico|"
+    r"brazil|australia|belgium|austria|sweden|denmark|norway|poland|ireland|"
+    r"singapore|hong kong|korea|turkey|portugal|luxembourg|finland|czech|"
+    r"hungary|greece|south africa|uae|delaware|california|new york|texas|"
+    r"nevada|ontario|quebec)\b",
+    re.I,
+)
+
+
+def _looks_like_jurisdiction(text: str) -> bool:
+    if not text or len(text) > 60:
+        return False
+    return bool(_JURISDICTION_RE.search(text))
+
+
 def _extract_web_structure(html: str, company_name: str) -> dict | None:
     """Extract corporate structure from an HTML page."""
     soup = BeautifulSoup(html, "html.parser")
-    subsidiaries = []
+    subsidiaries: list[tuple[str, str]] = []
 
     # Strategy 1: Tables
     for table in soup.find_all("table"):
@@ -255,7 +277,12 @@ def _extract_web_structure(html: str, company_name: str) -> dict | None:
                 name = texts[0]
                 if name.lower() not in ("name", "company", "subsidiary", "entity", "#", "no."):
                     if 3 < len(name) < 120 and not name.startswith("http"):
-                        subsidiaries.append(name)
+                        jurisdiction = ""
+                        for candidate in texts[1:]:
+                            if _looks_like_jurisdiction(candidate):
+                                jurisdiction = candidate
+                                break
+                        subsidiaries.append((name, jurisdiction))
 
     # Strategy 2: Structured lists under relevant headings
     if not subsidiaries:
@@ -266,7 +293,7 @@ def _extract_web_structure(html: str, company_name: str) -> dict | None:
                     for li in sib.find_all("li"):
                         t = li.get_text(strip=True)
                         if 3 < len(t) < 120:
-                            subsidiaries.append(t)
+                            subsidiaries.append((t, ""))
                     if subsidiaries:
                         break
                 break
@@ -282,16 +309,18 @@ def _extract_web_structure(html: str, company_name: str) -> dict | None:
                 in_section = any(kw in tl for kw in ["division", "subsidiar", "segment", "business", "companies", "brands"])
             elif in_section and tag.name in ("h3", "h4"):
                 if tl not in skip and 2 < len(tv) < 100:
-                    subsidiaries.append(tv)
+                    subsidiaries.append((tv, ""))
 
     if not subsidiaries:
         return None
 
-    seen, unique = set(), []
-    for s in subsidiaries:
-        if s not in seen:
-            seen.add(s)
-            unique.append(s)
+    seen: set[str] = set()
+    unique: list[tuple[str, str]] = []
+    for name, jurisdiction in subsidiaries:
+        key = name.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            unique.append((name, jurisdiction))
 
     return {"parent": "", "subsidiaries": unique[:50], "summary": f"Web search for {company_name}"}
 
@@ -311,19 +340,28 @@ def on_search(company_name: str):
         # Fall back to web search
         result = _web_search_subsidiaries(company_name)
         if result and result.get("subsidiaries"):
-            subs = result["subsidiaries"]
+            subs: list[tuple[str, str]] = result["subsidiaries"]
             source = result.get("source", "")
             info = f"**{company_name}** — {len(subs)} divisions/subsidiaries (web search)"
             if source:
                 info += f"\n\n[Source]({source})"
-            table_data = [[s, ""] for s in subs]
+            table_data = [[name, jurisdiction] for name, jurisdiction in subs]
+
+            safe = company_name.lower().replace(" ", "_").replace("/", "_").replace("..", "_")
+            csv_path = Path(tempfile.gettempdir()) / f"{safe}_subsidiaries.csv"
+            with open(csv_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Subsidiary Name", "Jurisdiction"])
+                for name, jurisdiction in subs:
+                    writer.writerow([name, jurisdiction])
+
             return (
                 f"Not an SEC filer. Showing web results for **{company_name}**.",
                 gr.update(choices=[], visible=False),
                 gr.update(visible=False),
                 info,
                 gr.update(value=table_data, visible=True),
-                gr.update(visible=False),
+                gr.update(value=str(csv_path), visible=True),
             )
         return (
             f'No SEC filing or web data found for "{company_name}".',
