@@ -1,76 +1,74 @@
-<!-- agent-notes: { ctx: "session handoff after web-fallback PDF parsing + jurisdiction fix", deps: [src/sales_lead_research/web_fallback.py, src/sales_lead_research/cli.py, app.py, hf_space/app.py, CLAUDE.md], state: active, last: "coordinator@2026-04-20" } -->
+<!-- agent-notes: { ctx: "session handoff after PDF support, test backfill, and repo cleanup", deps: [src/sales_lead_research/web_fallback.py, tests/test_web_fallback.py, .gitignore, archive/uat-exploration-2026-04/], state: active, last: "coordinator@2026-04-20" } -->
 
 # Session Handoff
 
 **Created:** 2026-04-20
-**Sprint:** All sprints complete — post-sprint polishing of the non-SEC (web search) path
-**Session summary:** Brought the non-SEC lookup path to feature parity with the SEC path by reading companies' own annual-report PDFs (DHL's "List of Shareholdings"), extracting subsidiary name + jurisdiction, rendering a tree, and saving a spreadsheet. Fixed a parser bug that split names containing a country word in parentheses. Added a durable "plain English" communication rule.
+**Sprint:** Out of formal sprint execution — post-sprint polishing of the non-SEC (web search) path.
+**Session summary:** Added structured PDF annual-report parsing to the web-fallback path so non-SEC filers (DHL) get the same tree + spreadsheet the SEC path produces, backfilled the first unit tests for that module, and cleaned up untracked clutter in the repo root.
 
 ## What Was Done
 
-### Non-SEC path now reads real annual reports
-- **Added `pypdf==6.10.2`** as a dependency (`pyproject.toml`, `uv.lock`).
-- **Rewrote `src/sales_lead_research/web_fallback.py`:**
-  - Expanded `_JURISDICTION_HINTS` to 80+ countries and US/Canadian provinces.
-  - New `_FINANCIAL_NOISE` filter drops rows like "Revenue", "EBIT", "Total assets" that leak from SEO content farms.
-  - `_JUNK_DOMAINS` blacklist (firmsworld.com, coursehero.com, scribd.com, studocu.com, coursesidekick.com).
-  - Search query tuned to `"{company} annual report list of subsidiaries shareholdings"` — surfaces the dedicated DHL "List of Shareholdings" PDF at rank 0.
-  - `_url_priority` ranks shareholdings PDFs highest, then official list-of-subsidiaries pages, then company domain, then generic pages.
-  - New `_extract_structure_from_pdf` parses structured rows like `<Name>[footnotes] <Country>, <City> <pct> <CCY> <equity> <net-income>` using a trailing-numbers anchor regex and a right-to-left country scan.
-  - HTML path now returns `(name, jurisdiction)` tuples so the tree branch can match the SEC output.
+### Feature: read subsidiaries from annual-report PDFs
+- Added `pypdf==6.10.2` and rewrote `src/sales_lead_research/web_fallback.py` to:
+  - Search for the dedicated "list of shareholdings" document, not the glossy full annual report.
+  - Rank shareholdings PDFs highest in results; blacklist SEO content farms; filter financial-line noise (Revenue, EBIT, ...).
+  - Parse PDF rows anchored on trailing numeric columns.
+  - Scan country matches **right-to-left** so names with parenthesized country words (e.g. `DHL Express (Portugal) Lda.`) stay intact. This is the one line of logic most at risk of regressing.
+- Pushed the tuple-shaped `(name, jurisdiction)` output through the terminal tool (`src/sales_lead_research/cli.py`) and both Gradio UIs (`app.py`, `hf_space/app.py`), each of which now also saves a matching spreadsheet.
+- Verified live: DHL run extracted 699 real subsidiaries.
 
-### Web-fallback output matches SEC path
-- **`src/sales_lead_research/cli.py`:** after a successful web lookup, the CLI now prints a jurisdiction-tagged tree, writes a `{parent}_subsidiaries.csv` spreadsheet, and announces where it saved the file.
-- **`app.py`:** Gradio UI iterates the new tuple shape and emits a downloadable CSV.
-- **`hf_space/app.py`:** self-contained mirror updated the same way; CSV is written to a temp path and wired to the download component.
-
-### Parser bug fix (last edit this session)
-- Names containing a country word in parentheses (`"DHL Express (Portugal) Lda."`) used to split at the *first* country match, producing garbled rows. Fix: scan matches right-to-left and anchor on the last `<Country>, ` pair.
-- Verified live against DHL: the spreadsheet now has 699 subsidiaries; rows like `DHL Express Portugal, Lda.` / `Portugal, Moreira da Maia` are intact.
-
-### Communication rule made durable
-- **`CLAUDE.md`:** added "Talk to the user in plain English" under Critical Rules.
-- **Memory:** `feedback_plain_english.md` created + linked from `MEMORY.md`. Persists across sessions.
+### Durable rule: plain-English replies
+- Added "Talk to the user in plain English" under Critical Rules in `CLAUDE.md`.
+- Also codified in cross-session memory (`memory/feedback_plain_english.md`).
 
 ### Tests
-- Full suite: **130 passing, 0 failing** after all changes.
+- New `tests/test_web_fallback.py` — 33 tests covering:
+  - DuckDuckGo URL extraction and dedup.
+  - Promising-URL scoring for PDFs / investor pages / blog spam.
+  - Jurisdiction detection and financial-noise filter.
+  - HTML table extractor (basic parse, noise skip, later-column jurisdiction pickup, dedup).
+  - PDF extractor with a stubbed `pypdf.PdfReader` — including the regression guard for the country-in-parens case.
+- Full suite: **163 passing** (was 130), 10 test files.
+
+### Cleanup
+- Moved earlier hand-curated exploration (`DHL.csv`, `DHL.html`, `DHL.md`, `fedex.csv`) into `archive/uat-exploration-2026-04/`.
+- Ignored future tool outputs (`*_subsidiaries.csv`, `uat-out/`) and the personal `.claude/statusline.sh`.
+- Moved the personal `statusLine` config out of the shared `settings.json` into `settings.local.json` so checkouts on other machines don't reference a missing file.
 
 ## Current State
 
-- **Branch:** `main` (up to date with origin)
-- **Last commit:** `1b0e5a1 chore: session handoff after web fallback, UAT, and diagrams`
-- **Uncommitted changes:** 8 modified files (CLAUDE.md, app.py, hf_space/app.py, pyproject.toml, uv.lock, src/sales_lead_research/cli.py, src/sales_lead_research/web_fallback.py, .claude/settings.json) + untracked `uat-out/` directory with DHL/FedEx run outputs.
-- **Tests:** 130 passing across 9 test files.
-- **Board status:** No board movement this session — this was post-sprint polishing. Issues #4, #5, #9, #10 still show "In Progress" or no status on the board but the work is merged on `main`. Not a blocker; recommend tidying statuses during next session.
-- **Stray files in repo root** (untracked from earlier UAT): `3m_co_subsidiaries.csv`, `DHL.csv`, `DHL.html`, `DHL.md`, `apple_inc._subsidiaries.csv`, `fedex.csv`, `fedex_corp_subsidiaries.csv`, `microsoft_corp_subsidiaries.csv`. Safe to delete or gitignore.
+- **Branch:** `main` — **4 commits ahead of origin, needs a push.**
+- **Last commit:** `206f731 chore: archive exploration outputs, ignore tool outputs`
+- **Uncommitted changes:** none — working tree clean.
+- **Tests:** 163 passing across 10 test files.
+- **Board status:** not touched this session. Issues #4, #5, #9, #10 on the GitHub Project still show "In Progress" or no status even though the work is merged on `main`. No blocker — tidy next session.
 
 ## Sprint Progress
 
-- **Wave plan:** None — project is out of formal sprint/wave execution. `docs/sprints/` does not exist.
-- **Remaining backlog items from the prior handoff's "what next":**
-  - Add unit tests for `web_fallback.py` (still no dedicated test file; the HTML/PDF extractors run live-only today).
-  - Wire `cache.py` into the CLI via a `--cache-dir` flag.
-  - Rate-limit SEC calls to <=10 req/s for large recursive walks.
-  - GitHub Actions CI running pytest on push.
-  - Push latest changes to the Hugging Face Space repo.
-  - Tidy board statuses (#4, #5, #9, #10) to reflect reality.
+- `docs/sprints/` does not exist; `docs/tracking/` does not exist; `docs/product-context.md` does not exist. Project is out of formal wave/sprint execution and running on an ad-hoc "what next" queue.
+- **This session completed from the prior handoff's "what next" list:**
+  - Add unit tests for `web_fallback.py` ✅
+  - Clean up repo-root clutter + ignore tool outputs ✅
+- **Still on the queue:**
+  - **Push** `main` to origin (4 commits pending).
+  - Push the updated `hf_space/app.py` to the Hugging Face Space so the hosted demo matches the local one.
+  - Tidy the GitHub Project board (close / reclassify #4, #5, #9, #10).
+  - Rate-limit SEC calls (<=10 req/s) for deep recursive walks.
+  - Wire `cache.py` into the terminal tool via a `--cache-dir` flag.
+  - GitHub Actions CI running `uv run pytest` on push.
 
 ## What To Do Next (in order)
 
 1. Read `docs/code-map.md` to orient.
-2. **Decide on commits:** this session's 8 modified files are a coherent unit (web-fallback PDF support + plain-English rule). Suggested split:
-   - `feat(web-fallback): read subsidiaries from annual-report PDFs` — `src/sales_lead_research/web_fallback.py`, `pyproject.toml`, `uv.lock`, `src/sales_lead_research/cli.py`, `app.py`, `hf_space/app.py`.
-   - `docs(claude): require plain-English replies` — `CLAUDE.md` (plus note about the matching memory entry).
-   - `.claude/settings.json` — inspect the diff before including.
-3. **Add tests for `web_fallback.py`:** at minimum, a fixture-driven test for `_extract_structure_from_pdf` using a trimmed copy of DHL's shareholdings PDF, and a mocked DuckDuckGo HTML response for `_extract_structure` covering the right-to-left country split.
-4. **Clean up the repo root** — either delete the stray `*_subsidiaries.csv` / `DHL.*` files or add patterns to `.gitignore` alongside `uat-out/`.
-5. **Investigate the one suspicious DHL row:** `"DHL Freight Portugal, Unipessoal Lda.","Spain, Maia"` — the city looks like a PDF layout artifact where two source lines were glued together. Low priority; document as a known limitation if not fixable.
-6. **Update the Hugging Face Space** with the matching `hf_space/app.py` so the hosted demo uses the new PDF path.
-7. **Board tidy-up:** close or reclassify #4, #5, #9, #10 on the GitHub Project so the board reflects merged state.
+2. **Push `main`** — `git push` (no force). Four local commits aren't on GitHub yet: `9788cc4`, `9d6c719`, `173d264`, `206f731`.
+3. **Update the Hugging Face Space.** Check the HF Space repo clone path from the prior session (look in the commit history around `feat: publish tool to Hugging Face` and in `git log --all -- hf_space/`). Copy the current `hf_space/app.py` + `hf_space/requirements.txt`, commit in the HF Space repo, push. The Space will rebuild automatically.
+4. **Board tidy-up.** `gh project item-list 5 --owner mahadevaiahrashmi --format json`. Move #4, #5, #9, #10 to "Done" (work is merged).
+5. **Investigate the one suspicious DHL row** — `DHL Freight Portugal, Unipessoal Lda.` has jurisdiction `Spain, Maia`. Looks like a PDF layout artifact where two source lines got glued together. Low priority; document as a known limitation if it can't be fixed without sacrificing the 699 good rows.
+6. If time remains: add SEC rate-limiting (<=10 req/s) and expose `--cache-dir` on the terminal tool.
 
 ## Tracking Artifacts
 
-- None this session — `docs/tracking/` does not exist and no new phase artifacts were created. `docs/product-context.md` also does not exist.
+- None. `docs/tracking/` does not exist.
 
 ## Proxy Decisions (Review Required)
 
@@ -78,12 +76,16 @@
 
 ## Key Context
 
-- **Right-to-left country scan in `_extract_structure_from_pdf`** is load-bearing. Any future edit that loops over `_JURISDICTION_HINTS.finditer(prefix)` must keep the "take the last match whose tail starts with `, `" rule, or DHL rows regress.
-- **`_FINANCIAL_NOISE` and `_JUNK_DOMAINS` exist because the first loose search query landed on `firmsworld.com`** and pulled in "Revenue / EBIT / Total assets" as fake subsidiaries. Don't delete those filters without replacing them.
-- **The right document is the "List of Shareholdings" PDF, not the main annual report.** The full glossy annual report is 9 MB of prose; the structured table we need lives in a separate PDF that the tuned query pulls up first.
-- **Plain-English rule is now codified in two places:** CLAUDE.md (project-level) and `memory/feedback_plain_english.md` (user-level, cross-project). Both should be updated together if the rule changes.
-- **User preferences carried in auto-memory:**
-  - Archive, don't delete — move unused files to `archive/` instead of `rm`.
-  - `gh project` owner quirk — always use explicit `--owner mahadevaiahrashmi`.
-  - `updateProjectV2Field` GraphQL schema no longer accepts `projectId`; pass only `fieldId`.
-- **Live DHL test command:** `printf 'DHL\n\nexit\n' | uv run --project /home/mahad/test2/sales_lead_research python -m sales_lead_research > dhl.log 2>&1` (run from `uat-out/` so the CSV lands there).
+- **Right-to-left country scan** in `_extract_structure_from_pdf` (lines 381–386 of `src/sales_lead_research/web_fallback.py`) is load-bearing. `tests/test_web_fallback.py::test_keeps_country_in_parens` guards it. Don't "simplify" that loop to pick the first match.
+- **Search query** is tuned: `{company} annual report list of subsidiaries shareholdings`. The word "shareholdings" is what surfaces DHL's list-of-shareholdings PDF at rank 0 instead of the 9 MB full annual report.
+- **PDF parser only works on structured tables** shaped like `<Name> <Country>, <City> <pct%> <CCY> <equity> <net-income>`. Companies that publish subsidiary lists in other shapes will fall through to the HTML extractor.
+- **`_FINANCIAL_NOISE` and `_JUNK_DOMAINS`** exist because the first loose query landed on `firmsworld.com` and pulled "Revenue / EBIT / Total assets" as fake subsidiaries. Don't remove those filters without replacing them.
+- **Plain-English rule is codified in two places:** `CLAUDE.md` (project) and `memory/feedback_plain_english.md` (cross-session). Update both together if it changes.
+- **Live DHL smoke test:** from `uat-out/`, run  
+  `printf 'DHL\n\nexit\n' | uv run --project /home/mahad/test2/sales_lead_research python -m sales_lead_research > dhl.log 2>&1`  
+  then confirm `wc -l dhl_subsidiaries.csv` is around 705 and grep for `DHL Express Portugal, Lda.` to verify the country-in-parens case.
+- **User preferences in memory:**
+  - Plain English always.
+  - Archive, don't delete.
+  - `gh project` owner quirk — use explicit `--owner mahadevaiahrashmi`.
+  - `updateProjectV2Field` GraphQL schema no longer accepts `projectId`.
