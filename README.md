@@ -223,6 +223,28 @@ See what the methodology produces before committing to it:
 
 ---
 
+## Development Environment
+
+This project ships a devcontainer for reproducible local development.
+
+**With VS Code (recommended).** Install the "Dev Containers" extension, open the project folder, and pick *"Reopen in Container"* when prompted. The container installs Python 3.12, the `uv` dependency manager, the GitHub CLI, and project dependencies automatically.
+
+**With GitHub Codespaces.** Push to GitHub and click *"Code → Codespaces → Create codespace on main"*.
+
+**With the dev container CLI.** `devcontainer up --workspace-folder .`
+
+Once the container is up:
+
+```bash
+uv run pytest              # run the test suite
+uv run python -m sales_lead_research   # run the terminal tool
+uv run python app.py       # serve the local Gradio UI on port 7860
+```
+
+Port `7860` is auto-forwarded when you start a Gradio front-end. Config lives in `.devcontainer/devcontainer.json`.
+
+---
+
 ## Replace This README
 
 This README is automatically replaced during `/quickstart`, `/kickoff`, or any `/scaffold-*` command. See [Template Guide](docs/template-guide.md) for the full reference.
