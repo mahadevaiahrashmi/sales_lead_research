@@ -56,6 +56,10 @@ ehthumbs.db
 *_subsidiaries.csv
 uat-out/
 
+# Dummy customer database (regenerable from scripts/init_dummy_db.py)
+data/customers.sqlite
+data/customers.sqlite-journal
+
 # Package manager lockfiles (uncomment the one you DON'T use)
 # package-lock.json
 # yarn.lock
