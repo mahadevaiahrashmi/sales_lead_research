@@ -60,8 +60,17 @@ Every non-excluded file must have agent-notes metadata. See `docs/methodology/ag
 
 ## Critical Rules
 
-### Talk to the user in plain English
-Explain everything in plain, everyday English. Avoid jargon, framework names, code-internals terminology, and three-letter acronyms (SEC, CLI, REPL, API, etc.) unless the user used the term first. When a technical term is unavoidable, define it the first time it appears. Prefer short sentences and concrete nouns ("the tool looks up...", "the annual-report page", "the list we save to a spreadsheet") over abstract nouns ("the pipeline", "the extraction layer"). This rule applies to every user-facing response, including recaps, summaries, and explanations — not just "explain this" asks.
+### Talk to the user in plain English — always, as if talking to a non-technical person
+**Write every reply as if the reader has no software background.** Assume the person on the other side does not know what a package, module, subpackage, repo, branch, commit, dependency, env var, CLI, REPL, API, schema, fuzzy match, shim, or ADR is — and does not want a glossary either. Describe what the tool *does for a person*, not what the code does internally.
+
+Concrete rules:
+- No jargon, no framework names, no code-internals terminology, no three-letter acronyms (SEC, CLI, REPL, API, EDGAR, CSV, DB, SQL, etc.) unless the user used the term first. If a technical word is unavoidable, define it in everyday words the first time it appears, e.g. *"the chat window (the box where you type your question)"*.
+- Prefer short sentences and concrete nouns ("the tool looks up…", "the annual-report page", "the list we save to a spreadsheet") over abstract nouns ("the pipeline", "the extraction layer").
+- Explain *outcomes*, not *implementations*: "the tool will now tell you which of these companies you already sell to" beats "we added a matching layer that joins subsidiary names to the customer table."
+- No code fences, no file paths, no function names, no commit hashes, no issue numbers in user-facing prose unless the user asked for them or they're essential to the answer.
+- This rule applies to every user-facing response — recaps, summaries, status updates, plans, proposals, explanations. Not just "explain this" asks.
+
+If a response starts sounding like a changelog, a test report, or a pull-request description, rewrite it so a salesperson or a family member could follow it.
 
 ### Session Entry Protocol (Mandatory)
 Before writing any code — including types, tests, or ADRs — answer these three questions:
