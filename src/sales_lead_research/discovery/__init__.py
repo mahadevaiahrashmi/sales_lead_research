@@ -6,6 +6,10 @@ The names re-exported here are the only surface that callers outside
 helpers (``latest_10k_accession``, ``exhibit_21_url``, ``parse_exhibit_21``,
 ``_extract_structure_from_pdf`` and friends) stay module-private — see
 ADR-0003 §1 for the rationale.
+
+``cache`` is deliberately not re-exported. It's an internal concern of the
+discovery layer; tests that exercise it import from ``discovery.cache``
+directly.
 """
 
 from sales_lead_research.discovery.edgar import (
