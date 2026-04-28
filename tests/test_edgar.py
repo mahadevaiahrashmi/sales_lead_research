@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #2 + #7 acceptance tests for SEC EDGAR lookup pipeline", deps: ["src/sales_lead_research/edgar.py", "tests/fixtures/edgar/"], state: active, last: "tara@2026-04-16" }
+# agent-notes: { ctx: "issue #2 + #7 acceptance tests for SEC EDGAR lookup pipeline", deps: ["src/sales_lead_research/discovery/edgar.py", "tests/fixtures/edgar/"], state: active, last: "sato@2026-04-28" }
 """Acceptance tests for issue #2: SEC EDGAR company lookup.
 
 Drives ``edgar.py`` functions against fixture files via ``httpx.MockTransport``.
@@ -12,17 +12,19 @@ from pathlib import Path
 import httpx
 import pytest
 
-from sales_lead_research.edgar import (
-    AmbiguousCompanyName,
+from sales_lead_research.discovery import (
     CompanyNotFound,
     No10KFiled,
     NoExhibit21,
     build_client,
+    search_companies,
+)
+from sales_lead_research.discovery.edgar import (
+    AmbiguousCompanyName,
     exhibit_21_url,
     find_exhibit_21,
     latest_10k_accession,
     resolve_cik,
-    search_companies,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "edgar"

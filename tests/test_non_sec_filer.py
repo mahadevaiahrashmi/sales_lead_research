@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #10 tests for non-SEC filer graceful fallback", deps: ["src/sales_lead_research/edgar.py", "src/sales_lead_research/cli.py"], state: active, last: "sato@2026-04-16" }
+# agent-notes: { ctx: "issue #10 tests for non-SEC filer graceful fallback", deps: ["src/sales_lead_research/discovery/edgar.py", "src/sales_lead_research/cli.py"], state: active, last: "sato@2026-04-28" }
 """Tests for issue #10: graceful fallback for non-SEC filers.
 
 Companies that don't file with the SEC (e.g., DHL, Samsung) should get
@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from sales_lead_research.cli import run_repl
-from sales_lead_research.edgar import CompanyNotFound, search_companies
+from sales_lead_research.discovery import CompanyNotFound, search_companies
 
 FIXTURES = Path(__file__).parent / "fixtures" / "edgar"
 

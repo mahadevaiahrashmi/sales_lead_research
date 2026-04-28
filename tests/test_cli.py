@@ -299,7 +299,7 @@ class TestSearchCompaniesFunction:
     """Tests for the new search_companies function in edgar.py."""
 
     def test_substring_match_returns_results(self, edgar_client):
-        from sales_lead_research.edgar import search_companies
+        from sales_lead_research.discovery import search_companies
 
         results = search_companies("fedex", edgar_client)
         assert len(results) >= 1
@@ -307,13 +307,13 @@ class TestSearchCompaniesFunction:
         assert any("FEDEX" in name.upper() for name in names)
 
     def test_no_match_raises_company_not_found(self, edgar_client):
-        from sales_lead_research.edgar import CompanyNotFound, search_companies
+        from sales_lead_research.discovery import CompanyNotFound, search_companies
 
         with pytest.raises(CompanyNotFound):
             search_companies("zzz_nonexistent_zzz", edgar_client)
 
     def test_returns_cik_as_zero_padded_string(self, edgar_client):
-        from sales_lead_research.edgar import search_companies
+        from sales_lead_research.discovery import search_companies
 
         results = search_companies("apple", edgar_client)
         for _name, cik in results:

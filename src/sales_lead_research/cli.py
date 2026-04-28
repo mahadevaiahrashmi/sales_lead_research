@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "REPL chat loop, EDGAR lookup, recursive tree + CSV output", deps: ["rich", "httpx", "csv", "sales_lead_research.edgar"], state: active, last: "sato@2026-04-16" }
+# agent-notes: { ctx: "REPL chat loop, EDGAR lookup, recursive tree + CSV output", deps: ["rich", "httpx", "csv", "sales_lead_research.discovery"], state: active, last: "sato@2026-04-28" }
 """CLI chat loop.
 
 ``run_repl`` iterates input lines as user queries, rendering a placeholder
@@ -22,18 +22,20 @@ import httpx
 from rich.console import Console
 from rich.tree import Tree
 
-from sales_lead_research.edgar import (
+from sales_lead_research.discovery import (
     CompanyNotFound,
     EdgarLookupError,
     SubsidiaryNode,
-    exhibit_21_url,
     fetch_subsidiary_tree,
+    search_companies,
+    web_search_subsidiaries,
+)
+from sales_lead_research.discovery.edgar import (
+    exhibit_21_url,
     find_parent_company,
     latest_10k_accession,
     parse_exhibit_21,
-    search_companies,
 )
-from sales_lead_research.web_fallback import web_search_subsidiaries
 
 PLACEHOLDER_CHILD = "(subsidiary data unavailable - SEC lookup not yet implemented)"
 

@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #4 red-phase tests for recursive subsidiary walk", deps: ["src/sales_lead_research/edgar.py", "tests/fixtures/edgar/"], state: active, last: "tara@2026-04-16" }
+# agent-notes: { ctx: "issue #4 red-phase tests for recursive subsidiary walk", deps: ["src/sales_lead_research/discovery/edgar.py", "tests/fixtures/edgar/"], state: active, last: "sato@2026-04-28" }
 """Red-phase tests for issue #4: recursive subsidiary walk.
 
 Tests the ``SubsidiaryNode`` dataclass and ``fetch_subsidiary_tree`` function
@@ -11,7 +11,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from sales_lead_research.edgar import (
+from sales_lead_research.discovery import (
     SubsidiaryNode,
     fetch_subsidiary_tree,
 )

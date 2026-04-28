@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #3 red-phase tests for Exhibit 21 parser", deps: ["src/sales_lead_research/edgar.py", "tests/fixtures/edgar/apple_exhibit_21.html"], state: active, last: "tara@2026-04-16" }
+# agent-notes: { ctx: "issue #3 red-phase tests for Exhibit 21 parser", deps: ["src/sales_lead_research/discovery/edgar.py", "tests/fixtures/edgar/apple_exhibit_21.html"], state: active, last: "sato@2026-04-28" }
 """Failing tests for ``parse_exhibit_21`` — red phase of TDD.
 
 Tests exercise the HTML table parser against fixture files and edge cases.
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from sales_lead_research.edgar import parse_exhibit_21
+from sales_lead_research.discovery.edgar import parse_exhibit_21
 
 FIXTURES = Path(__file__).parent / "fixtures" / "edgar"
 

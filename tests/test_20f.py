@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #9 tests for 20-F filing support", deps: ["src/sales_lead_research/edgar.py", "tests/fixtures/edgar/"], state: active, last: "sato@2026-04-16" }
+# agent-notes: { ctx: "issue #9 tests for 20-F filing support", deps: ["src/sales_lead_research/discovery/edgar.py", "tests/fixtures/edgar/"], state: active, last: "sato@2026-04-28" }
 """Tests for issue #9: support 20-F filings for non-US parents.
 
 Foreign private issuers file 20-F instead of 10-K. The lookup pipeline
@@ -10,8 +10,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from sales_lead_research.edgar import (
-    No10KFiled,
+from sales_lead_research.discovery import No10KFiled
+from sales_lead_research.discovery.edgar import (
     exhibit_21_url,
     find_exhibit_21,
     latest_10k_accession,

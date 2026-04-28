@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "Gradio web UI for Sales Lead Research, HF Spaces entrypoint", deps: ["gradio", "sales_lead_research.edgar"], state: active, last: "sato@2026-04-16" }
+# agent-notes: { ctx: "Gradio web UI for Sales Lead Research, HF Spaces entrypoint", deps: ["gradio", "sales_lead_research.discovery"], state: active, last: "sato@2026-04-28" }
 """Gradio web interface for Sales Lead Research.
 
 Provides a browser-based UI for looking up SEC EDGAR corporate hierarchies.
@@ -14,16 +14,18 @@ from pathlib import Path
 
 import gradio as gr
 
-from sales_lead_research.edgar import (
+from sales_lead_research.discovery import (
     CompanyNotFound,
     EdgarLookupError,
     build_client,
+    search_companies,
+    web_search_subsidiaries,
+)
+from sales_lead_research.discovery.edgar import (
     exhibit_21_url,
     latest_10k_accession,
     parse_exhibit_21,
-    search_companies,
 )
-from sales_lead_research.web_fallback import web_search_subsidiaries
 
 USER_AGENT = "Sales Lead Research (mahadevaiah.rashmi@gmail.com)"
 

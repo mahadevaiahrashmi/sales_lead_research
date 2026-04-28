@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #6 red-phase tests for EDGAR response caching", deps: ["src/sales_lead_research/cache.py", "src/sales_lead_research/edgar.py", "tests/fixtures/edgar/"], state: active, last: "tara@2026-04-16" }
+# agent-notes: { ctx: "issue #6 red-phase tests for EDGAR response caching", deps: ["src/sales_lead_research/discovery/cache.py", "src/sales_lead_research/discovery/edgar.py", "tests/fixtures/edgar/"], state: active, last: "sato@2026-04-28" }
 """Failing tests for issue #6: cache EDGAR responses locally.
 
 All tests use ``tmp_path`` for the cache directory and
@@ -15,7 +15,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from sales_lead_research.cache import cached_get
+from sales_lead_research.discovery.cache import cached_get
 
 FIXTURES = Path(__file__).parent / "fixtures" / "edgar"
 
@@ -180,7 +180,7 @@ class TestCacheIntegration:
         """When ``search_companies`` is backed by ``cached_get``, two
         consecutive searches should produce only a single HTTP request
         for ``company_tickers.json``."""
-        from sales_lead_research.edgar import search_companies
+        from sales_lead_research.discovery import search_companies
 
         payload = _fixture("company_tickers.json")
         call_count = [0]

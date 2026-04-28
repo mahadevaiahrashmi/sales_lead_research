@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "issue #5 tests for parent-company resolution", deps: ["src/sales_lead_research/edgar.py", "tests/fixtures/edgar/"], state: active, last: "sato@2026-04-16" }
+# agent-notes: { ctx: "issue #5 tests for parent-company resolution", deps: ["src/sales_lead_research/discovery/edgar.py", "tests/fixtures/edgar/"], state: active, last: "sato@2026-04-28" }
 """Tests for issue #5: parent-company resolution (walk up the tree).
 
 When the queried company is itself a subsidiary of another SEC filer,
@@ -10,10 +10,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from sales_lead_research.edgar import (
-    find_parent_company,
-    search_companies,
-)
+from sales_lead_research.discovery import search_companies
+from sales_lead_research.discovery.edgar import find_parent_company
 
 FIXTURES = Path(__file__).parent / "fixtures" / "edgar"
 

@@ -1,5 +1,5 @@
-# agent-notes: { ctx: "unit tests for web_fallback helpers and PDF/HTML extractors", deps: ["src/sales_lead_research/web_fallback.py"], state: active, last: "tara@2026-04-20" }
-"""Tests for ``sales_lead_research.web_fallback``.
+# agent-notes: { ctx: "unit tests for web_fallback helpers and PDF/HTML extractors", deps: ["src/sales_lead_research/discovery/web_fallback.py"], state: active, last: "sato@2026-04-28" }
+"""Tests for ``sales_lead_research.discovery.web_fallback``.
 
 Covers the deterministic helpers (URL extraction, URL scoring, jurisdiction
 and financial-noise filters) and the HTML / PDF structure extractors. The
@@ -18,8 +18,8 @@ from urllib.parse import quote_plus
 
 import pytest
 
-from sales_lead_research import web_fallback
-from sales_lead_research.web_fallback import (
+from sales_lead_research.discovery import web_fallback
+from sales_lead_research.discovery.web_fallback import (
     _extract_ddg_urls,
     _extract_structure,
     _extract_structure_from_pdf,
