@@ -41,6 +41,7 @@ import pytest
 
 from sales_lead_research.matching.store import (  # type: ignore[import-not-found]
     Matches,
+    candidate_account_ids,
     lookup_by_name,
     lookup_with_confidence,
     open_store,
@@ -403,3 +404,44 @@ class TestMatches:
         m = Matches(exact=("ACCT-0001",), close=())
         with pytest.raises(dataclasses.FrozenInstanceError):
             m.exact = ("ACCT-9999",)  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# candidate_account_ids — the blocking step
+# ---------------------------------------------------------------------------
+
+
+class TestBlockingCandidates:
+    """``candidate_account_ids`` narrows the table to rows that share a
+    normalised token, so lookups score a handful of candidates instead of
+    every row — while never dropping a real match."""
+
+    def test_candidates_exclude_unrelated_rows(self, store) -> None:
+        # "Apple Inc." shares a token only with the Apple row; the FedEx,
+        # DHL and Acme rows are never scored.
+        assert candidate_account_ids(store, "Apple Inc.") == ("ACCT-0300",)
+
+    def test_candidates_smaller_than_table(self, store) -> None:
+        # The whole point of blocking: fewer candidates than rows. The
+        # fixture has 8 rows; an Apple lookup considers just one.
+        assert len(candidate_account_ids(store, "Apple Inc.")) < len(_FIXTURE_ROWS)
+
+    def test_candidates_are_a_superset_of_matches(self, store) -> None:
+        # Blocking must never drop a real match: every exact/close account
+        # id has to be present in the candidate set.
+        name = "FedEx Custom Critical Inc"
+        candidates = set(candidate_account_ids(store, name))
+        matches = lookup_with_confidence(store, name)
+        assert set(matches.exact) <= candidates
+        assert set(matches.close) <= candidates
+
+    def test_candidates_sorted_for_determinism(self, store) -> None:
+        candidates = candidate_account_ids(store, "FedEx Custom Critical Inc")
+        assert list(candidates) == sorted(candidates)
+
+    def test_suffix_only_input_has_no_candidates(self, store) -> None:
+        # "Inc." normalises to empty -> no tokens -> nothing to score.
+        assert candidate_account_ids(store, "Inc.") == ()
+
+    def test_empty_input_has_no_candidates(self, store) -> None:
+        assert candidate_account_ids(store, "") == ()
