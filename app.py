@@ -9,61 +9,59 @@ from __future__ import annotations
 
 import csv
 import io
+import os
 import tempfile
 from pathlib import Path
 
 import gradio as gr
 
+from sales_lead_research.chat.intent import parse
 from sales_lead_research.discovery import (
     CompanyNotFound,
     EdgarLookupError,
+    SubsidiaryNode,
     build_client,
+    fetch_subsidiary_tree,
     search_companies,
     web_search_subsidiaries,
 )
 from sales_lead_research.discovery.edgar import (
     exhibit_21_url,
-    latest_10k_accession,
-    parse_exhibit_21,
+    latest_annual_report,
 )
+from sales_lead_research.matching.present import account_cell
+from sales_lead_research.matching.store import lookup_with_confidence, open_store
 
 USER_AGENT = "Sales Lead Research (mahadevaiah.rashmi@gmail.com)"
 
 
-import re
+def _account_cells(names: list[str]) -> dict[str, str]:
+    """Look each subsidiary name up in the customer list.
 
-_NL_PATTERNS = [
-    # "show me X's subsidiaries", "show X subsidiaries"
-    re.compile(r"(?:show|list|get|find|look\s*up|fetch|pull|display)\s+(?:me\s+)?(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies|child\s+companies)", re.I),
-    # "what are X's subsidiaries", "what companies does X own"
-    re.compile(r"(?:what|which)\s+(?:are|companies?\s+(?:does|do))\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|own|have)", re.I),
-    # "who does X own", "who are X's subsidiaries"
-    re.compile(r"who\s+(?:does|do|are)\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:own|subsidiaries)", re.I),
-    # "subsidiaries of X", "hierarchy of X", "corporate structure of X"
-    re.compile(r"(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies)\s+(?:of|for|under)\s+(?:the\s+)?(.+)", re.I),
-    # "tell me about X", "search for X", "look up X"
-    re.compile(r"(?:tell\s+me\s+about|search\s+(?:for)?|look\s*up|info\s+(?:on|about|for))\s+(?:the\s+)?(.+)", re.I),
-]
+    Returns a name -> account-cell-text map. When no customer list is
+    available the cells are blank, so the Account ID column is always
+    present (just empty) — matching the product's non-negotiable.
+    """
+    store = open_store()
+    if store is None:
+        return {name: "" for name in names}
+    return {
+        name: account_cell(lookup_with_confidence(store, name)) for name in names
+    }
 
 
 def extract_company_name(query: str) -> str:
-    """Extract a company name from a natural language query.
+    """Extract a company name from a natural-language query.
 
-    If the query matches a known pattern, returns the extracted company
-    name. Otherwise returns the original query unchanged, so plain
-    company names still work.
+    Thin shim over the shared intent parser (``chat.intent.parse``) so the
+    web UI and the CLI recognise the same phrasings. For non-lookup input
+    (chit-chat, blank) it falls back to the raw text, since a search box
+    has no chat-style "exit" or rephrase handling.
     """
-    query = query.strip()
-    if not query:
-        return query
-
-    for pattern in _NL_PATTERNS:
-        m = pattern.search(query)
-        if m:
-            return m.group(1).strip().rstrip("?!")
-
-    # Strip trailing question marks / punctuation from plain queries
-    return query.rstrip("?!")
+    intent = parse(query)
+    if intent.kind == "lookup" and intent.company_name:
+        return intent.company_name
+    return query.strip()
 
 
 def search(company_name: str) -> tuple[list[list[str]], str]:
@@ -94,34 +92,52 @@ def lookup(company_name: str, cik: str) -> tuple[str, str, list[list[str]], str 
         return "No company selected.", "", [], None
 
     client = build_client(USER_AGENT)
+
+    # Source filing URL + freshness (shown to the user).
     try:
-        accession = latest_10k_accession(cik, client)
+        accession, form, filing_date = latest_annual_report(cik, client)
         url = exhibit_21_url(cik, accession, client)
     except EdgarLookupError as exc:
         return f"Error: {exc}", "", [], None
 
+    # Recursive corporate tree — parity with the CLI (not just one level).
     try:
-        resp = client.get(url)
-        resp.raise_for_status()
-        subsidiaries = parse_exhibit_21(resp.text)
-    except Exception as exc:
-        return f"Error fetching Exhibit 21: {exc}", url, [], None
+        root = fetch_subsidiary_tree(company_name, client)
+    except EdgarLookupError as exc:
+        return f"Error: {exc}", url, [], None
 
-    if not subsidiaries:
+    flat: list[tuple[str, str, int]] = []
+
+    def _flatten(node: SubsidiaryNode, depth: int) -> None:
+        for child in node.children:
+            flat.append((child.name, child.jurisdiction, depth))
+            _flatten(child, depth + 1)
+
+    _flatten(root, 1)
+
+    if not flat:
         return "No subsidiaries found in the filing.", url, [], None
 
-    # Build results
-    info = f"{company_name} (CIK: {cik}) — {len(subsidiaries)} subsidiaries"
-    table = [[name, jurisdiction] for name, jurisdiction in subsidiaries]
+    # Match each subsidiary against the customer list.
+    cells = _account_cells([name for name, _, _ in flat])
+
+    # Build results (Subsidiary Name, Jurisdiction, Level, Account ID).
+    info = f"{company_name} (CIK: {cik}) — {len(flat)} subsidiaries"
+    if filing_date:
+        info += f" · from {form} filed {filing_date}"
+    table = [
+        [name, jurisdiction, level, cells[name]]
+        for name, jurisdiction, level in flat
+    ]
 
     # Generate CSV for download
     safe_name = company_name.lower().replace(" ", "_").replace("/", "_").replace("..", "_")
     csv_path = Path(tempfile.gettempdir()) / f"{safe_name}_subsidiaries.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Subsidiary Name", "Jurisdiction"])
-        for name, jurisdiction in subsidiaries:
-            writer.writerow([name, jurisdiction])
+        writer.writerow(["Subsidiary Name", "Jurisdiction", "Level", "Account ID"])
+        for name, jurisdiction, level in flat:
+            writer.writerow([name, jurisdiction, level, cells[name]])
 
     return info, url, table, str(csv_path)
 
@@ -151,7 +167,14 @@ def _web_fallback(company_name: str):
         info_parts.append(f"\n\n[Source]({source})")
     info = "".join(info_parts)
 
-    table = [[name, jurisdiction] for name, jurisdiction in subs] if subs else []
+    cells = _account_cells([name for name, _ in subs])
+    # Web-fallback results are a flat list (no recursion), so every row is
+    # Level 1 — keeps the same four columns as the SEC path.
+    table = (
+        [[name, jurisdiction, 1, cells[name]] for name, jurisdiction in subs]
+        if subs
+        else []
+    )
 
     csv_path: str | None = None
     if subs:
@@ -159,9 +182,9 @@ def _web_fallback(company_name: str):
         out_path = Path(tempfile.gettempdir()) / f"{safe_name}_subsidiaries.csv"
         with open(out_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Subsidiary Name", "Jurisdiction"])
+            writer.writerow(["Subsidiary Name", "Jurisdiction", "Level", "Account ID"])
             for name, jurisdiction in subs:
-                writer.writerow([name, jurisdiction])
+                writer.writerow([name, jurisdiction, 1, cells[name]])
         csv_path = str(out_path)
 
     return (
@@ -400,8 +423,8 @@ def build_app() -> gr.Blocks:
         info_text = gr.Markdown(value=None, visible=False)
 
         results_table = gr.Dataframe(
-            headers=["Subsidiary Name", "Jurisdiction"],
-            label="Subsidiaries",
+            headers=["Subsidiary Name", "Jurisdiction", "Level", "Account ID"],
+            label="Subsidiaries (with existing-customer account IDs)",
             visible=False,
             wrap=True,
         )
@@ -430,4 +453,12 @@ def build_app() -> gr.Blocks:
 
 if __name__ == "__main__":
     app = build_app()
-    app.launch(theme=_anthropic_theme(), css=ANTHROPIC_CSS)
+    # Bind address/port come from the environment so the same entry point
+    # works locally (defaults to 127.0.0.1) and in Docker, where the
+    # container sets GRADIO_SERVER_NAME=0.0.0.0 to be reachable from the host.
+    app.launch(
+        server_name=os.environ.get("GRADIO_SERVER_NAME", "127.0.0.1"),
+        server_port=int(os.environ.get("GRADIO_SERVER_PORT", "7860")),
+        theme=_anthropic_theme(),
+        css=ANTHROPIC_CSS,
+    )
