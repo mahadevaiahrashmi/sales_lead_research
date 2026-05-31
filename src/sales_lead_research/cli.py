@@ -13,7 +13,6 @@ rendering of subsidiaries, and CSV export.
 from __future__ import annotations
 
 import csv
-import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import TextIO
@@ -22,6 +21,7 @@ import httpx
 from rich.console import Console
 from rich.tree import Tree
 
+from sales_lead_research.chat.intent import parse
 from sales_lead_research.discovery import (
     CompanyNotFound,
     EdgarLookupError,
@@ -33,31 +33,27 @@ from sales_lead_research.discovery import (
 from sales_lead_research.discovery.edgar import (
     exhibit_21_url,
     find_parent_company,
-    latest_10k_accession,
+    latest_annual_report,
     parse_exhibit_21,
+)
+from sales_lead_research.matching.present import account_cell, tree_account_suffix
+from sales_lead_research.matching.store import (
+    CustomerStore,
+    Matches,
+    lookup_with_confidence,
 )
 
 PLACEHOLDER_CHILD = "(subsidiary data unavailable - SEC lookup not yet implemented)"
 
-_NL_PATTERNS = [
-    re.compile(r"(?:show|list|get|find|look\s*up|fetch|pull|display)\s+(?:me\s+)?(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies|child\s+companies)", re.I),
-    re.compile(r"(?:what|which)\s+(?:are|companies?\s+(?:does|do))\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:subsidiaries|own|have)", re.I),
-    re.compile(r"who\s+(?:does|do|are)\s+(?:the\s+)?(.+?)(?:'s)?\s+(?:own|subsidiaries)", re.I),
-    re.compile(r"(?:subsidiaries|hierarchy|corporate\s+(?:structure|tree)|sub\s*companies)\s+(?:of|for|under)\s+(?:the\s+)?(.+)", re.I),
-    re.compile(r"(?:tell\s+me\s+about|search\s+(?:for)?|look\s*up|info\s+(?:on|about|for))\s+(?:the\s+)?(.+)", re.I),
-]
-
-
 def extract_company_name(query: str) -> str:
-    """Extract a company name from a natural language query."""
-    query = query.strip()
-    if not query:
-        return query
-    for pattern in _NL_PATTERNS:
-        m = pattern.search(query)
-        if m:
-            return m.group(1).strip().rstrip("?!")
-    return query.rstrip("?!")
+    """Extract a company name from a natural-language query.
+
+    Thin backwards-compatible shim over the shared intent parser
+    (``chat.intent.parse``). The natural-language patterns live in one
+    place now; this name is kept so existing callers and tests keep
+    working. Returns ``""`` for blank / non-lookup input.
+    """
+    return parse(query).company_name or ""
 
 
 def _next_line(it: iter) -> str | None:
@@ -80,24 +76,69 @@ def _confirm(it: iter) -> bool | None:
     return True
 
 
+def _match_subsidiaries(
+    root: SubsidiaryNode, store: CustomerStore | None
+) -> dict[str, Matches]:
+    """Map every subsidiary name in the tree to its customer matches.
+
+    Each unique name is looked up once. When no customer store is open,
+    every name maps to an empty ``Matches`` so callers can index safely.
+    """
+    result: dict[str, Matches] = {}
+
+    def _walk(node: SubsidiaryNode) -> None:
+        for child in node.children:
+            if child.name not in result:
+                result[child.name] = (
+                    lookup_with_confidence(store, child.name)
+                    if store is not None
+                    else Matches(exact=(), close=())
+                )
+            _walk(child)
+
+    _walk(root)
+    return result
+
+
+def _print_match_summary(
+    console: Console, matches_by_name: dict[str, Matches]
+) -> None:
+    """Print a plain-English count of how many subsidiaries are customers."""
+    confirmed = sum(1 for m in matches_by_name.values() if m.exact)
+    possible = sum(1 for m in matches_by_name.values() if not m.exact and m.close)
+    if confirmed:
+        console.print(f"{confirmed} of these are already in your customer list.")
+    if possible:
+        console.print(f"{possible} look like possible matches worth a quick check.")
+    if not confirmed and not possible:
+        console.print("None of these are in your customer list yet.")
+
+
 def run_repl(
     input_lines: Iterable[str],
     output: TextIO,
     *,
     client: httpx.Client | None = None,
     output_dir: Path | None = None,
+    store: CustomerStore | None = None,
 ) -> None:
     console = Console(file=output)
     it = iter(input_lines)
 
     for raw in it:
-        line = raw.strip()
-        if line == "exit":
+        intent = parse(raw)
+        if intent.kind == "exit":
             return
-        if not line:
+        if intent.kind == "empty":
+            continue
+        if intent.kind == "unknown":
+            console.print(
+                "I look up a company's corporate family tree. Try a company "
+                "name like 'FedEx', or ask 'show me Apple's subsidiaries'."
+            )
             continue
 
-        line = extract_company_name(line)
+        line = intent.company_name or ""
 
         if client is None:
             # Placeholder mode (original issue #1 behavior)
@@ -123,13 +164,25 @@ def run_repl(
                     if result.get("parent"):
                         console.print(f"Parent company: {result['parent']}")
                     subs: list[tuple[str, str]] = result.get("subsidiaries", [])
+                    web_matches = {
+                        sub_name: (
+                            lookup_with_confidence(store, sub_name)
+                            if store is not None
+                            else Matches(exact=(), close=())
+                        )
+                        for sub_name, _ in subs
+                    }
                     if subs:
                         tree = Tree(root_name)
                         for sub_name, jurisdiction in subs:
                             label = f"{sub_name} ({jurisdiction})" if jurisdiction else sub_name
+                            if store is not None:
+                                label += " " + tree_account_suffix(web_matches[sub_name])
                             tree.add(label)
                         console.print(tree)
                         console.print(f"({len(subs)} subsidiaries/divisions found)")
+                        if store is not None:
+                            _print_match_summary(console, web_matches)
                     if result.get("source"):
                         console.print(f"Source: {result['source']}")
 
@@ -139,9 +192,10 @@ def run_repl(
                         csv_path = (output_dir / filename) if output_dir is not None else Path(filename)
                         with open(csv_path, "w", newline="") as f:
                             writer = csv.writer(f)
-                            writer.writerow(["Subsidiary Name", "Jurisdiction", "Level"])
+                            writer.writerow(["Subsidiary Name", "Jurisdiction", "Level", "Account ID"])
                             for sub_name, jurisdiction in subs:
-                                writer.writerow([sub_name, jurisdiction, 1])
+                                cell = account_cell(web_matches[sub_name]) if store is not None else ""
+                                writer.writerow([sub_name, jurisdiction, 1, cell])
                         console.print(f"Saved to {filename} ({len(subs)} subsidiaries)")
                 else:
                     console.print(
@@ -185,13 +239,17 @@ def run_repl(
 
         # Gate 2: filing source confirmation
         try:
-            accession = latest_10k_accession(cik, client)
+            accession, form, filing_date = latest_annual_report(cik, client)
             url = exhibit_21_url(cik, accession, client)
         except EdgarLookupError as exc:
             console.print(str(exc))
             continue
 
         console.print(f"Source: {url}")
+        if filing_date:
+            console.print(
+                f"Subsidiaries are from this company's {form} filed {filing_date}."
+            )
         console.print("Proceed with this filing? [Y/n]")
         answer = _confirm(it)
         if answer is None:
@@ -206,18 +264,26 @@ def run_repl(
             console.print(str(exc))
             continue
 
-        # Render tree
+        # Match every subsidiary against the customer list (once per name).
+        matches_by_name = _match_subsidiaries(root_node, store)
+
+        # Render tree, annotating each subsidiary with its customer status.
         console.print(f"{company_name} (CIK: {cik})")
 
         def _add_children(rich_tree: Tree, node: SubsidiaryNode) -> None:
             for child in node.children:
                 label = f"{child.name} ({child.jurisdiction})" if child.jurisdiction else child.name
+                if store is not None:
+                    label += " " + tree_account_suffix(matches_by_name[child.name])
                 branch = rich_tree.add(label)
                 _add_children(branch, child)
 
         tree = Tree(root_node.name)
         _add_children(tree, root_node)
         console.print(tree)
+
+        if store is not None:
+            _print_match_summary(console, matches_by_name)
 
         # Flatten tree for CSV export
         flat: list[tuple[str, str, int]] = []
@@ -229,7 +295,7 @@ def run_repl(
 
         _flatten(root_node, 1)
 
-        # CSV export
+        # CSV export (enriched with the customer Account ID column)
         safe_name = company_name.lower().replace(" ", "_").replace("/", "_").replace("..", "_")
         filename = safe_name + "_subsidiaries.csv"
         if output_dir is not None:
@@ -239,8 +305,9 @@ def run_repl(
 
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Subsidiary Name", "Jurisdiction", "Level"])
+            writer.writerow(["Subsidiary Name", "Jurisdiction", "Level", "Account ID"])
             for sub_name, jurisdiction, level in flat:
-                writer.writerow([sub_name, jurisdiction, level])
+                cell = account_cell(matches_by_name[sub_name]) if store is not None else ""
+                writer.writerow([sub_name, jurisdiction, level, cell])
 
         console.print(f"Saved to {filename} ({len(flat)} subsidiaries)")

@@ -242,6 +242,13 @@ class TestFullHappyPathFlow:
         )
         assert "sec.gov" in output
 
+    def test_output_shows_filing_freshness(self, edgar_client, tmp_path):
+        # The user should see which filing (and when) the subsidiaries came from.
+        output = _run_with_client(
+            ["FEDEX CORP", "y", "y", "exit"], edgar_client, tmp_path
+        )
+        assert "10-K filed 2024-07-22" in output
+
 
 class TestCsvExport:
     def test_csv_file_created_in_output_dir(self, edgar_client, tmp_path):
@@ -271,7 +278,7 @@ class TestCsvExport:
         with open(csv_file) as f:
             reader = csv.reader(f)
             headers = next(reader)
-        assert headers == ["Subsidiary Name", "Jurisdiction", "Level"]
+        assert headers == ["Subsidiary Name", "Jurisdiction", "Level", "Account ID"]
 
     def test_csv_contains_all_subsidiaries(self, edgar_client, tmp_path):
         _run_with_client(
@@ -442,3 +449,143 @@ class TestRecursiveTreeRendering:
         assert any(
             col in headers for col in ("Level", "Parent", "Depth")
         ), f"expected Level/Parent/Depth column in headers: {headers}"
+
+
+# ---------------------------------------------------------------------------
+# Gap 1: customer-DB matching wired into the chat loop (account_id column)
+# ---------------------------------------------------------------------------
+
+import sqlite3
+
+from sales_lead_research.matching.store import open_store
+
+_STORE_SCHEMA = """
+CREATE TABLE customers (
+    account_id          TEXT PRIMARY KEY,
+    company_name        TEXT NOT NULL,
+    parent_id           TEXT,
+    ultimate_parent_id  TEXT,
+    location            TEXT,
+    country             TEXT,
+    tax_number          TEXT,
+    zip_code            TEXT
+);
+"""
+
+
+@pytest.fixture()
+def customer_store(tmp_path):
+    """A tiny customer DB whose single row matches one FedEx Exhibit-21 sub.
+
+    'Federal Express Corporation' normalises to 'federal express', which
+    is an exact match for the fixture subsidiary of the same name. The
+    other four FedEx subsidiaries do not match, so the run produces
+    exactly one confirmed customer.
+    """
+    db_path = tmp_path / "customers.sqlite"
+    with sqlite3.connect(db_path) as con:
+        con.executescript(_STORE_SCHEMA)
+        con.execute(
+            "INSERT INTO customers (account_id, company_name) VALUES (?, ?)",
+            ("ACCT-7777", "Federal Express Corporation"),
+        )
+        con.commit()
+    handle = open_store(db_path)
+    assert handle is not None, "fixture DB exists; open_store must return a handle"
+    return handle
+
+
+def _run_with_store(lines, edgar_client, store, tmp_path):
+    out = io.StringIO()
+    run_repl(
+        iter(lines),
+        out,
+        client=edgar_client,
+        output_dir=tmp_path,
+        store=store,
+    )
+    return out.getvalue()
+
+
+class TestCustomerMatchingWiredIn:
+    """Gap 1: the matching engine must actually run inside run_repl and
+    surface account IDs in the tree, the summary, and the CSV."""
+
+    def test_existing_customer_account_id_in_tree(
+        self, edgar_client, customer_store, tmp_path
+    ):
+        output = _run_with_store(
+            ["FEDEX CORP", "y", "y", "exit"], edgar_client, customer_store, tmp_path
+        )
+        assert "ACCT-7777" in output
+        assert "[Account: ACCT-7777]" in output
+
+    def test_non_customer_subsidiary_shows_em_dash(
+        self, edgar_client, customer_store, tmp_path
+    ):
+        # TNT Express B.V. is a fixture subsidiary that is not in the store.
+        output = _run_with_store(
+            ["FEDEX CORP", "y", "y", "exit"], edgar_client, customer_store, tmp_path
+        )
+        assert "[—]" in output
+
+    def test_summary_counts_existing_customers(
+        self, edgar_client, customer_store, tmp_path
+    ):
+        output = _run_with_store(
+            ["FEDEX CORP", "y", "y", "exit"], edgar_client, customer_store, tmp_path
+        )
+        assert "1 of these are already in your customer list." in output
+
+    def test_csv_account_id_column_populated(
+        self, edgar_client, customer_store, tmp_path
+    ):
+        _run_with_store(
+            ["FEDEX CORP", "y", "y", "exit"], edgar_client, customer_store, tmp_path
+        )
+        csv_file = tmp_path / "fedex_corp_subsidiaries.csv"
+        with open(csv_file) as f:
+            reader = csv.reader(f)
+            headers = next(reader)
+            rows = list(reader)
+        assert headers == ["Subsidiary Name", "Jurisdiction", "Level", "Account ID"]
+        fed_rows = [r for r in rows if r[0] == "Federal Express Corporation"]
+        assert fed_rows, f"expected Federal Express row in {rows}"
+        assert fed_rows[0][3] == "ACCT-7777"
+
+    def test_account_column_present_but_empty_without_store(
+        self, edgar_client, tmp_path
+    ):
+        # Product non-negotiable: the Account ID column is always present,
+        # even when no customer list is available — just blank.
+        out = io.StringIO()
+        run_repl(
+            iter(["FEDEX CORP", "y", "y", "exit"]),
+            out,
+            client=edgar_client,
+            output_dir=tmp_path,
+        )
+        csv_file = tmp_path / "fedex_corp_subsidiaries.csv"
+        with open(csv_file) as f:
+            reader = csv.reader(f)
+            headers = next(reader)
+            rows = list(reader)
+        assert headers == ["Subsidiary Name", "Jurisdiction", "Level", "Account ID"]
+        assert rows and all(r[3] == "" for r in rows)
+
+
+class TestChitChatHandling:
+    """Gap 2: now that the loop uses the shared intent parser, chit-chat
+    ('hello', 'help', ...) is recognised as 'unknown' and gets a gentle
+    rephrase prompt instead of being searched as a company name."""
+
+    def test_chit_chat_gets_rephrase_message(self):
+        output = _run(["hello", "exit"])
+        assert "corporate family tree" in output
+
+    def test_chit_chat_renders_no_tree(self):
+        output = _run(["hello", "exit"])
+        tree_glyphs = ("├", "└", "│")
+        assert not any(glyph in output for glyph in tree_glyphs), (
+            f"chit-chat should not render a tree, got: {output!r}"
+        )

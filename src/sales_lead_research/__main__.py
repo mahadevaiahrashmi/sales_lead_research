@@ -12,6 +12,7 @@ from pathlib import Path
 from sales_lead_research.cli import run_repl
 from sales_lead_research.discovery import build_client
 from sales_lead_research.matching.init_db import init_db
+from sales_lead_research.matching.store import open_store
 
 _DEFAULT_DB_PATH = Path("data/customers.sqlite")
 
@@ -23,7 +24,14 @@ def _resolve_db_path() -> Path:
 
 def _run_repl() -> int:
     client = build_client("Sales Lead Research (mahadevaiah.rashmi@gmail.com)")
-    run_repl(sys.stdin, sys.stdout, client=client)
+    store = open_store()
+    if store is None:
+        print(
+            "Note: no customer list found, so I'll show subsidiaries without "
+            "account IDs.\nRun 'sales-lead-research init-db' or set SALES_DB_PATH "
+            "to turn on customer matching.\n"
+        )
+    run_repl(sys.stdin, sys.stdout, client=client, store=store)
     return 0
 
 
