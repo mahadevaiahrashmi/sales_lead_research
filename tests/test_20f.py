@@ -15,6 +15,7 @@ from sales_lead_research.discovery.edgar import (
     exhibit_21_url,
     find_exhibit_21,
     latest_10k_accession,
+    latest_annual_report,
     parse_exhibit_21,
 )
 
@@ -114,3 +115,37 @@ class TestParseExhibit21ForForeignFiler:
         html = _fixture("toyota_exhibit_21.html").decode()
         subs = parse_exhibit_21(html)
         assert len(subs) == 3
+
+
+class TestLatestAnnualReport:
+    """``latest_annual_report`` returns ``(accession, form, filing_date)``
+    — the form and date drive the 'subsidiaries are from this company's
+    10-K filed YYYY-MM-DD' freshness line."""
+
+    def test_10k_includes_form_and_date(self, client):
+        acc, form, date = latest_annual_report("0000320193", client)
+        assert acc == "0000320193-24-000123"
+        assert form == "10-K"
+        assert date == "2024-11-01"
+
+    def test_20f_fallback_includes_form_and_date(self, client):
+        acc, form, date = latest_annual_report("0007777777", client)
+        assert acc == "0007777777-24-000010"
+        assert form == "20-F"
+        assert date == "2024-06-28"
+
+    def test_no_annual_report_raises(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = str(request.url)
+            if "CIK0003333333" in url:
+                return httpx.Response(200, content=_fixture("CIK0003333333.json"))
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        c = httpx.Client(transport=transport, headers={"User-Agent": "test"})
+        with pytest.raises(No10KFiled):
+            latest_annual_report("0003333333", c)
+
+    def test_wrapper_still_returns_just_accession(self, client):
+        # Backwards-compat: latest_10k_accession returns the string only.
+        assert latest_10k_accession("0000320193", client) == "0000320193-24-000123"

@@ -155,20 +155,32 @@ def resolve_cik(name: str, client: httpx.Client) -> str:
     return str(matches[0]).zfill(10)
 
 
-def latest_10k_accession(cik: str, client: httpx.Client) -> str:
+def latest_annual_report(cik: str, client: httpx.Client) -> tuple[str, str, str]:
+    """Return ``(accession, form, filing_date)`` for the most recent annual
+    report.
+
+    Prefers a 10-K; falls back to a 20-F for foreign private issuers.
+    ``filing_date`` is the SEC ``filingDate`` (ISO ``YYYY-MM-DD``), or an
+    empty string if the submissions feed omits it. Raises ``No10KFiled``
+    if the filer has neither a 10-K nor a 20-F.
+    """
     url = f"https://data.sec.gov/submissions/CIK{cik}.json"
     resp = client.get(url)
     resp.raise_for_status()
     data = resp.json()
 
     recent = data["filings"]["recent"]
+    accessions = recent["accessionNumber"]
+    forms = recent["form"]
+    dates = recent.get("filingDate", [""] * len(accessions))
+
     # Prefer 10-K; fall back to 20-F for foreign private issuers.
-    fallback_20f: str | None = None
-    for acc, form in zip(recent["accessionNumber"], recent["form"]):
+    fallback_20f: tuple[str, str, str] | None = None
+    for acc, form, date in zip(accessions, forms, dates):
         if form == "10-K":
-            return acc
+            return acc, form, date
         if form == "20-F" and fallback_20f is None:
-            fallback_20f = acc
+            fallback_20f = (acc, form, date)
 
     if fallback_20f is not None:
         return fallback_20f
@@ -177,6 +189,15 @@ def latest_10k_accession(cik: str, client: httpx.Client) -> str:
         f"No annual report (10-K or 20-F) found for CIK {cik}. "
         f"This company may only file quarterly or other report types."
     )
+
+
+def latest_10k_accession(cik: str, client: httpx.Client) -> str:
+    """Return the accession of the most recent 10-K (or 20-F fallback).
+
+    Thin wrapper over :func:`latest_annual_report` for callers that only
+    need the accession number.
+    """
+    return latest_annual_report(cik, client)[0]
 
 
 def exhibit_21_url(cik: str, accession: str, client: httpx.Client) -> str:
