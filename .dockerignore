@@ -1,0 +1,26 @@
+# Keep the build context small and avoid shipping local/dev artifacts.
+.git
+.gitignore
+.venv
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+node_modules
+
+# Local customer database(s) — never bake these into the image; the
+# container seeds demo data (or you bind-mount your own at runtime).
+data/
+
+# Not needed at runtime.
+tests/
+docs/
+hf_space/
+archive/
+samples/
+.devcontainer/
+.claude/
+.github/
+*.md
+LICENSE
