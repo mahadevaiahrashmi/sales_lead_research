@@ -1,4 +1,5 @@
-gradio>=5.0
-httpx>=0.28
-beautifulsoup4>=4.12
-rich>=13.7
+# The web UI now lives in the package, so the Space just installs it
+# (this pulls gradio, httpx, beautifulsoup4, pypdf, rich). Requires this
+# repo to be public (or add an access token to the URL). Pin to a tag or
+# commit for reproducible Space builds.
+sales-lead-research @ git+https://github.com/mahadevaiahrashmi/sales_lead_research.git@main

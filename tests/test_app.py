@@ -58,7 +58,9 @@ def mock_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             headers={"User-Agent": "test"},
         )
 
-    monkeypatch.setattr(webapp, "build_client", _build)
+    # Patch build_client where it is used (the package module), since the
+    # handlers now live in sales_lead_research.web and app.py just re-exports.
+    monkeypatch.setattr("sales_lead_research.web.build_client", _build)
     monkeypatch.delenv("SALES_DB_PATH", raising=False)
     monkeypatch.chdir(tmp_path)
 

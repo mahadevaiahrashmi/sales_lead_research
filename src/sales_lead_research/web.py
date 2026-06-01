@@ -1,8 +1,9 @@
-# agent-notes: { ctx: "Gradio web UI for Sales Lead Research, HF Spaces entrypoint", deps: ["gradio", "sales_lead_research.discovery"], state: active, last: "sato@2026-04-28" }
+# agent-notes: { ctx: "Gradio web UI (package module); local app.py and HF Space are thin shims", deps: ["gradio", "sales_lead_research.discovery", "sales_lead_research.matching"], state: active, last: "sato@2026-05-31" }
 """Gradio web interface for Sales Lead Research.
 
-Provides a browser-based UI for looking up SEC EDGAR corporate hierarchies.
-Designed to run on Hugging Face Spaces.
+Provides a browser-based UI for looking up corporate hierarchies and flagging
+existing customers. Lives in the package so the local entry point (`app.py`)
+and the Hugging Face Space are thin shims over this one implementation.
 """
 
 from __future__ import annotations
@@ -451,14 +452,21 @@ def build_app() -> gr.Blocks:
     return app
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Launch the web UI.
+
+    Bind address/port come from the environment so the same entry point works
+    locally (defaults to 127.0.0.1) and in Docker, where the container sets
+    GRADIO_SERVER_NAME=0.0.0.0 to be reachable from the host.
+    """
     app = build_app()
-    # Bind address/port come from the environment so the same entry point
-    # works locally (defaults to 127.0.0.1) and in Docker, where the
-    # container sets GRADIO_SERVER_NAME=0.0.0.0 to be reachable from the host.
     app.launch(
         server_name=os.environ.get("GRADIO_SERVER_NAME", "127.0.0.1"),
         server_port=int(os.environ.get("GRADIO_SERVER_PORT", "7860")),
         theme=_anthropic_theme(),
         css=ANTHROPIC_CSS,
     )
+
+
+if __name__ == "__main__":
+    main()
