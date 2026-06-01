@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sales Lead Research</title>
+  <style>
+    :root {
+      --bg: #faf7f2; --panel: #fff; --ink: #1a1714; --sub: #5e5545;
+      --line: #ebe4d8; --accent: #d97757; --accent-d: #c4613f;
+      --ok: #2f7d4f; --ok-bg: #e7f3ec; --warn: #9a6a1f; --warn-bg: #fbf0db;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 24px; letter-spacing: -0.02em; margin: 0 0 4px; }
+    p.lede { color: var(--sub); margin: 0 0 24px; }
+    .searchbar { display: flex; gap: 8px; }
+    input[type=text] {
+      flex: 1; padding: 12px 14px; border: 1px solid var(--line);
+      border-radius: 10px; font-size: 15px; background: var(--panel);
+    }
+    input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,87,.15); }
+    button {
+      padding: 12px 18px; border: 0; border-radius: 10px; cursor: pointer;
+      background: var(--accent); color: #fff; font-weight: 600; font-size: 15px;
+    }
+    button:hover { background: var(--accent-d); }
+    button.ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+    #status { color: var(--sub); margin: 16px 0; min-height: 20px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .candidate { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .candidate:last-child { border-bottom: 0; }
+    .meta { color: var(--sub); font-size: 13px; }
+    ul.tree { list-style: none; margin: 0; padding-left: 0; }
+    ul.tree ul { list-style: none; margin: 0; padding-left: 20px; border-left: 1px solid var(--line); }
+    li.node { padding: 4px 0; }
+    .name { font-weight: 500; }
+    .juris { color: var(--sub); font-size: 13px; }
+    .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: 6px; }
+    .badge.ok { color: var(--ok); background: var(--ok-bg); }
+    .badge.warn { color: var(--warn); background: var(--warn-bg); }
+    .badge.none { color: var(--sub); background: #f1ece3; }
+    code { background: #f1ece3; padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sales Lead Research</h1>
+    <p class="lede">Type a company name to see its corporate family tree and which subsidiaries are already customers.</p>
+
+    <div class="searchbar">
+      <input id="q" type="text" placeholder="e.g. FedEx, Apple, Microsoft" autocomplete="off" />
+      <button id="go">Search</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="candidates"></div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const status = (msg) => { $("status").textContent = msg || ""; };
+
+    async function getJSON(url) {
+      const r = await fetch(url);
+      if (!r.ok) {
+        let detail = r.statusText;
+        try { detail = (await r.json()).detail || detail; } catch (e) {}
+        throw new Error(detail);
+      }
+      return r.json();
+    }
+
+    async function search() {
+      const q = $("q").value.trim();
+      $("candidates").innerHTML = "";
+      $("results").innerHTML = "";
+      if (!q) return;
+      status(`Searching for “${q}”…`);
+      try {
+        const data = await getJSON(`/api/search?q=${encodeURIComponent(q)}`);
+        if (!data.matches.length) {
+          status(data.message);
+          // Offer a web-fallback lookup for non-SEC filers.
+          const btn = document.createElement("button");
+          btn.className = "ghost";
+          btn.textContent = `Try a web search for “${q}”`;
+          btn.onclick = () => webLookup(q);
+          $("candidates").appendChild(btn);
+          return;
+        }
+        if (data.matches.length === 1) {
+          const m = data.matches[0];
+          status("");
+          return lookup(m.name, m.cik);
+        }
+        status(`Found ${data.matches.length} matches — pick one:`);
+        const card = document.createElement("div");
+        card.className = "card";
+        for (const m of data.matches) {
+          const row = document.createElement("div");
+          row.className = "candidate";
+          row.innerHTML = `<span class="name">${esc(m.name)}</span> <span class="meta">CIK ${esc(m.cik)}</span>`;
+          const pick = document.createElement("button");
+          pick.className = "ghost"; pick.textContent = "Look up";
+          pick.onclick = () => lookup(m.name, m.cik);
+          row.appendChild(pick);
+          card.appendChild(row);
+        }
+        $("candidates").appendChild(card);
+      } catch (e) { status("Error: " + e.message); }
+    }
+
+    async function lookup(company, cik) {
+      $("candidates").innerHTML = "";
+      status(`Loading subsidiaries of ${company}…`);
+      try {
+        const d = await getJSON(`/api/lookup?company=${encodeURIComponent(company)}&cik=${encodeURIComponent(cik)}`);
+        status("");
+        renderResults(d);
+      } catch (e) { status("Error: " + e.message); }
+    }
+
+    async function webLookup(company) {
+      status(`Searching the web for ${company}…`);
+      try {
+        const d = await getJSON(`/api/web-lookup?company=${encodeURIComponent(company)}`);
+        status("");
+        renderWeb(d);
+      } catch (e) { status("Error: " + e.message); }
+    }
+
+    function badge(node) {
+      if (node.account_ids && node.account_ids.length)
+        return `<span class="badge ok">customer: ${node.account_ids.join(", ")}</span>`;
+      if (node.possible_account_ids && node.possible_account_ids.length)
+        return `<span class="badge warn">possibly ${node.possible_account_ids.join(", ")} — verify</span>`;
+      return `<span class="badge none">not a customer</span>`;
+    }
+
+    function renderNode(node) {
+      const li = document.createElement("li");
+      li.className = "node";
+      const juris = node.jurisdiction ? ` <span class="juris">(${esc(node.jurisdiction)})</span>` : "";
+      li.innerHTML = `<span class="name">${esc(node.name)}</span>${juris} ${badge(node)}`;
+      if (node.children && node.children.length) {
+        const ul = document.createElement("ul");
+        node.children.forEach((c) => ul.appendChild(renderNode(c)));
+        li.appendChild(ul);
+      }
+      return li;
+    }
+
+    function renderResults(d) {
+      const card = document.createElement("div");
+      card.className = "card";
+      const fresh = d.filing_date ? ` · from ${esc(d.form)} filed ${esc(d.filing_date)}` : "";
+      card.innerHTML =
+        `<div><strong>${esc(d.company)}</strong> <span class="meta">CIK ${esc(d.cik)}${fresh}</span></div>` +
+        `<div class="meta" style="margin:6px 0 12px">${d.subsidiaries_total} subsidiaries · ` +
+        `<strong>${d.customers_matched}</strong> already in your customer list · ` +
+        `<a href="${esc(d.source_url)}" target="_blank" rel="noopener">source filing</a></div>`;
+      const ul = document.createElement("ul");
+      ul.className = "tree";
+      ul.appendChild(renderNode(d.tree));
+      card.appendChild(ul);
+      $("results").innerHTML = "";
+      $("results").appendChild(card);
+    }
+
+    function renderWeb(d) {
+      const card = document.createElement("div");
+      card.className = "card";
+      const src = d.source_url ? ` · <a href="${esc(d.source_url)}" target="_blank" rel="noopener">source</a>` : "";
+      card.innerHTML =
+        `<div><strong>${esc(d.parent || d.company)}</strong> <span class="meta">(web search)</span></div>` +
+        `<div class="meta" style="margin:6px 0 12px">${d.subsidiaries_total} subsidiaries · ` +
+        `<strong>${d.customers_matched}</strong> already in your customer list${src}</div>`;
+      const ul = document.createElement("ul");
+      ul.className = "tree";
+      d.flat.forEach((row) => ul.appendChild(renderNode(row)));
+      card.appendChild(ul);
+      $("results").innerHTML = "";
+      $("results").appendChild(card);
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    $("go").onclick = search;
+    $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+  </script>
+</body>
+</html>
