@@ -142,3 +142,65 @@ Each entry says: **what we chose**, **why**, and **who decided**.
 - SEC rate limiting.
 - A cache-folder flag on the terminal tool.
 - A continuous-integration pipeline that runs the test suite on every push.
+
+---
+
+## Session of 2026-05-30
+
+### Finishing what was started
+
+- **Connected the customer matching to what people actually see.**
+  The part that checks a subsidiary against the customer list had been built and
+  tested on its own, but it was never plugged into the typed version or the web
+  page — so neither showed account numbers. We wired it in: both now show an
+  "Account ID" column, mark "possibly … — verify" for close matches, and the
+  saved spreadsheet carries the same column.
+  *Decided by: you (it was always the intent — we just finished the wiring).*
+
+- **Made the matching quick instead of plodding.**
+  Before, every lookup compared the company against *every* customer in the list.
+  Now the tool builds a quick index when it opens and only compares against the
+  handful of customers that share a word — same answers, far less work. The
+  bigger, multi-language version for millions of customers is written up as a
+  future design, not built.
+  *Decided by: me (recorded as a decision record).*
+
+- **The web page now shows the full family tree.**
+  It used to show only the top layer of subsidiaries; now it shows the whole tree
+  (children of children too), matching the typed version. The web page also got
+  its first automated tests.
+  *Decided by: me.*
+
+- **Every answer now shows which filing it came from and when.**
+  e.g. "from 10-K filed 2024-07-22" — so a salesperson can judge how fresh it is.
+  This was always a requirement; we'd just not surfaced it yet.
+  *Decided by: you (carried over).*
+
+- **One shared way of understanding questions.**
+  The typed version and the web page each had their own copy of the
+  question-understanding rules. They now share a single one; chit-chat gets a
+  gentle "try a company name" nudge instead of being searched.
+  *Decided by: the team (finishing a previously-queued cleanup).*
+
+### Running it on any machine
+
+- **Added a one-command way to run the web page in a self-contained box.**
+  `docker compose up` builds and serves the web page on the usual address and
+  fills in the demo customer list automatically the first time. The real customer
+  list is never baked into the box — it's added at run time. Works without Docker
+  Desktop (we used the lightweight Colima runtime).
+  *Decided by: you (you asked for a Docker setup); details chosen by me, recorded
+  as a decision record.*
+
+### Tidying for the future
+
+- **Wrote a "regeneration kit".**
+  A short guide (`docs/regeneration-kit.md`) that lists which document answers
+  which question, plus a short prompt to rebuild an equivalent tool from those
+  documents and the tests. The idea: the documents are the source of truth, the
+  prompt is just the ignition key.
+  *Decided by: you (you asked how to make the tool re-buildable from one prompt).*
+
+- **Two new formal decision records** were added: the quick-narrowing match index,
+  and the self-contained-box (Docker) setup.
+  *Decided by: me.*
