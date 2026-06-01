@@ -23,7 +23,7 @@ The tool automates the manual lookup. Given a company name, it:
 
 ```
 sales_lead_research/
-├── app.py                          # [BUILT] Gradio web chat UI (port 7860)
+├── Dockerfile / docker-compose.yml # [BUILT] container build (FastAPI on port 8000)
 ├── pyproject.toml / uv.lock        # uv-managed Python 3.12 project
 ├── src/sales_lead_research/
 │   ├── __main__.py                 # `python -m sales_lead_research` entry
@@ -38,7 +38,7 @@ sales_lead_research/
 │       ├── names.py                # [BUILT] normalise / jaccard / classify primitives
 │       ├── store.py                # [BUILT] read-only SQLite customer store
 │       └── init_db.py              # [BUILT] customer DB bootstrap
-├── hf_space/app.py                 # [BUILT] Hugging Face Space deployment shim
+├── k8s/                            # [BUILT] EKS manifests (Deployment/Service/Ingress/HPA)
 ├── scripts/init_dummy_db.py        # [BUILT] seed a dummy customer DB for demos
 ├── tests/                          # [BUILT] ~14 pytest modules (see §8)
 └── docs/                           # methodology, ADRs, this document
@@ -55,7 +55,7 @@ flowchart TD
     User([Salesperson])
     subgraph UI["Presentation layer  [BUILT]"]
         CLI["Terminal REPL (cli.py)"]
-        WEB["Gradio web UI (app.py)"]
+        WEB["FastAPI REST API + static UI (api.py)"]
     end
     INTENT["Intent parser (chat/intent.py)\nregex, deterministic"]
 
@@ -95,10 +95,10 @@ flowchart TD
 
 ## 3. Core Components
 
-### 3.1 Presentation — CLI + Gradio  [BUILT]
+### 3.1 Presentation — CLI + REST API  [BUILT]
 - **Responsibility:** accept a natural-language request, render the corporate tree and the customer-match results.
-- **Technologies:** `rich` (tree rendering in the terminal), `gradio` (web chat on port 7860).
-- **Deployment:** local CLI via `uv run python -m sales_lead_research`; web UI via `uv run python app.py`; public demo via a Hugging Face Space (`hf_space/`).
+- **Technologies:** `rich` (tree rendering in the terminal), `fastapi` + `uvicorn` (REST API on port 8000) with a static vanilla-JS front-end at `/`.
+- **Deployment:** local CLI via `uv run python -m sales_lead_research`; API via `uvicorn sales_lead_research.api:app` (or `docker compose up`); on a cluster via the `k8s/` manifests (EKS).
 
 ### 3.2 Intent parsing — `chat/intent.py`  [BUILT]
 - **Responsibility:** map a raw query to a typed `Intent` (`lookup` / `exit` / `empty` / `unknown`) and extract the company name.
@@ -162,8 +162,8 @@ The heart of "find the corporate family tree."
 
 ### Current  [BUILT]
 - **Runtime:** Python 3.12, `uv`-managed.
-- **Dev environment:** devcontainer (Python 3.12 + uv + GitHub CLI); port 7860 auto-forwarded for Gradio.
-- **Hosting:** local CLI; Gradio web UI; Hugging Face Space for a shareable demo.
+- **Dev environment:** devcontainer (Python 3.12 + uv + GitHub CLI); the API serves on port 8000.
+- **Hosting:** local CLI; FastAPI REST API + static UI; container image deployable to Kubernetes / EKS (`k8s/`).
 - **CI/CD:** `pytest` suite; conventional-commit discipline (one commit per issue).
 
 ### [TARGET] Production (AWS reference, matching the Ericsson JD)
@@ -274,8 +274,8 @@ flowchart LR
 
 - **Project Name:** Sales Lead Research
 - **Description:** Chat tool that pulls a company's parent/subsidiary structure from public filings and flags which entities are already customers.
-- **Tech Stack:** Python 3.12 (uv), httpx, beautifulsoup4, pypdf, rich, gradio, pytest, SQLite. Data source: SEC EDGAR + web.
-- **Primary entry points:** `python -m sales_lead_research` (CLI), `app.py` (web).
+- **Tech Stack:** Python 3.12 (uv), httpx, beautifulsoup4, pypdf, rich, fastapi, uvicorn, pytest, SQLite. Data source: SEC EDGAR + web.
+- **Primary entry points:** `python -m sales_lead_research` (CLI), `uvicorn sales_lead_research.api:app` (REST API + UI).
 - **Date of Last Update:** 2026-05-29
 
 ---

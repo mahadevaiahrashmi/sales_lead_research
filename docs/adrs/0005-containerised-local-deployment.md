@@ -6,7 +6,10 @@ agent-notes: { ctx: "ADR: containerised local deployment of the Gradio web UI", 
 
 ## Status
 
-Accepted
+Superseded by [ADR-0006](./0006-rest-api-eks.md). The general "containerise for
+local + cluster runs" decision stands, but the Gradio specifics (port 7860,
+`GRADIO_SERVER_*` env) no longer apply — the container now serves a FastAPI REST
+API on port 8000.
 
 ## Context
 

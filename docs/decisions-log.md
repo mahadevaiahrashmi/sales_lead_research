@@ -204,3 +204,33 @@ Each entry says: **what we chose**, **why**, and **who decided**.
 - **Two new formal decision records** were added: the quick-narrowing match index,
   and the self-contained-box (Docker) setup.
   *Decided by: me.*
+
+---
+
+## Session of 2026-05-31
+
+### Turned the web page into a proper web service
+
+- **Replaced the demo web page with a standard web service plus a plain web page.**
+  The browser version used to be built on a quick demo framework. Now there's a
+  proper web service that hands back the company tree and customer matches as
+  data, and a lightweight web page that calls it. This is the shape a real
+  product exposes, and it slots into standard hosting machinery.
+  *Decided by: you (you asked for this).*
+
+- **Removed the separate hosted copy entirely.** One less thing to keep in sync.
+  *Decided by: you.*
+
+- **Made it ready to run on a managed cluster (Amazon's Kubernetes service).**
+  Added the configuration a cluster needs — how many copies to run, how to
+  health-check them, how to scale up under load — so the same package runs on a
+  laptop or across a fleet.
+  *Decided by: you.*
+
+- **Added a quality scorecard for the matching.** A small check that measures how
+  often the tool is right and how many real matches it catches (right ~100% of
+  the time, catches ~80%), and honestly lists what it misses.
+  *Decided by: me.*
+
+- **The test suite now runs automatically on every save to the shared copy.**
+  *Decided by: me.*

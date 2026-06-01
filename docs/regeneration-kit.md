@@ -86,7 +86,9 @@ CUSTOMER MATCHING:
 INTERFACES (all share one discovery + matching core):
 1. Terminal chat (REPL): prints the hierarchy as an indented tree with account
    annotations, confirmation gates for company + filing, and writes an enriched CSV.
-2. Gradio web UI on port 7860: same recursive tree, an Account ID column, CSV download.
+2. A FastAPI REST API (/health, /api/search, /api/lookup, /api/web-lookup) that
+   returns the recursive tree + customer matches as JSON, with a small static
+   vanilla-JS front-end served at /.
 3. A shared natural-language intent parser ("show me X's subsidiaries", "search
    for X", a bare name...); politely handle chit-chat.
 4. Console entry point with an "init-db" subcommand; plus a script that seeds a
@@ -94,8 +96,9 @@ INTERFACES (all share one discovery + matching core):
    and unrelated rows).
 
 PACKAGING / RUN ANYWHERE: manage with uv (pyproject + lockfile, hatchling build).
-Provide a Dockerfile + docker-compose so `docker compose up` serves the web UI on
-localhost:7860 and seeds the demo database on first run.
+Provide a Dockerfile + docker-compose so `docker compose up` serves the API on
+localhost:8000 and seeds the demo database on first run. Include Kubernetes
+manifests (Deployment with /health probes, Service, Ingress, HPA) for EKS.
 
 NON-NEGOTIABLES:
 - Test-driven with pytest; mock all SEC/web calls via httpx MockTransport against

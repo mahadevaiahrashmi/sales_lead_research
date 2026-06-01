@@ -31,7 +31,7 @@ matching/                                                   [which are customers
    └── present.py Matches → "[Account: …]" / account-cell text
    │
    ▼
-Front-ends: cli.py (rich tree) · app.py (Gradio table)  +  enriched CSV
+Front-ends: cli.py (rich tree) · api.py (FastAPI REST + static JS)  +  enriched CSV
 ```
 
 The customer database is opened **read-only**; a **token inverted index** is built in memory once at open time so each lookup scores only candidate rows, not the whole table.
@@ -52,14 +52,14 @@ discovery/cache.py ──── httpx
 discovery/__init__.py ─ re-exports the public discovery API
 
 cli.py ──────────────── chat.intent · discovery · matching.store · matching.present
-app.py (Gradio) ─────── chat.intent · discovery · matching.store · matching.present
+api.py (FastAPI) ────── discovery · matching.store · matching.present
 __main__.py ─────────── cli · discovery · matching.init_db · matching.store
 ```
 
 ## Package / Module Summaries
 
 ### `chat/` — natural-language intent
-**Purpose:** turn a raw query into a typed intent. The **single** home for the NL patterns (cli.py and app.py delegate here).
+**Purpose:** turn a raw query into a typed intent. The **single** home for the NL patterns (the CLI delegates here; the API takes a query string directly).
 
 | Module | Key Exports | Notes |
 |--------|------------|-------|
@@ -89,9 +89,9 @@ __main__.py ─────────── cli · discovery · matching.init_
 | File | Key Exports | Notes |
 |------|------------|-------|
 | `cli.py` | `run_repl(input_lines, output, *, client, output_dir, store)` | Chat loop: 2 confirmation gates, recursive tree with `[Account: …]` annotations, match summary, enriched CSV, web-fallback path |
-| `app.py` | `build_app`, `lookup`, `on_search`, `on_select`, `_account_cells` | Gradio UI; recursive tree; Account ID column; filing-date freshness |
+| `api.py` | FastAPI `app`; `/health`, `/api/search`, `/api/lookup`, `/api/web-lookup` | REST API over the core; JSON tree + account matches; OpenAPI at `/docs` |
 | `__main__.py` | `main(argv)` | `sales-lead-research` console script: REPL default + `init-db`; opens the store, warns in plain English if absent |
-| `hf_space/app.py` | — | Standalone Hugging Face Spaces bundle (vendored copy — see tech-debt) |
+| `static/index.html` | — | Static vanilla-JS front-end served by the API at `/` |
 
 ## Test Inventory
 
@@ -108,7 +108,8 @@ __main__.py ─────────── cli · discovery · matching.init_
 | `test_cache.py` | HTTP cache TTL |
 | `test_init_db.py` | DB creation / seeding |
 | `test_cli.py` | full chat loop: gates, tree, **account_id wiring**, freshness, chit-chat |
-| `test_app.py` | Gradio handlers: **recursive parity**, Level + Account columns, freshness |
+| `test_api.py` | FastAPI endpoints: health, search, recursive lookup (JSON), customer match, web fallback |
+| `test_evaluate.py` | precision / recall / F1 metric helpers |
 
 Run: `uv run pytest`.
 
@@ -122,7 +123,7 @@ query: str
   → Exhibit 21 URL: str
   → SubsidiaryNode(name, jurisdiction, children)        # recursive tree
   → per subsidiary: candidate_account_ids → Matches(exact, close)
-  → account_cell / tree_account_suffix → rich tree row / Gradio table row / CSV
+  → account_cell / tree_account_suffix → rich tree row / JSON / CSV
 ```
 
 ## Config Structure
@@ -130,5 +131,5 @@ query: str
 | Setting | Where | Purpose |
 |---------|-------|---------|
 | `SALES_DB_PATH` | env var | Customer DB path (default `data/customers.sqlite`). Build it with `init-db` or `scripts/init_dummy_db.py` |
-| `USER_AGENT` | `cli.py` / `app.py` | Sent on SEC requests for fair-use compliance |
-| Gradio port | `app.py` | `7860` when serving the web UI |
+| `USER_AGENT` | `cli.py` / `api.py` | Sent on SEC requests for fair-use compliance |
+| `APP_PORT` | `api.py` (container) | `8000` when serving the REST API + UI |
