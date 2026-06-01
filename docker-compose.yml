@@ -1,8 +1,8 @@
-# Run the Sales Lead Research web UI locally:
+# Run the Sales Lead Research API + web UI locally:
 #
 #   docker compose up --build
 #
-# then open http://localhost:7860
+# then open http://localhost:8000  (REST API under /api/*, OpenAPI docs at /docs)
 #
 services:
   web:
@@ -10,10 +10,9 @@ services:
     image: sales-lead-research:local
     container_name: sales-lead-research
     ports:
-      - "7860:7860"
+      - "8000:8000"
     environment:
-      GRADIO_SERVER_NAME: "0.0.0.0"   # bind all interfaces so the host can reach it
-      GRADIO_SERVER_PORT: "7860"
+      APP_PORT: "8000"
       SALES_DB_PATH: "/app/data/customers.sqlite"
     volumes:
       # Persists the seeded demo database across restarts. The container

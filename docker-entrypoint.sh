@@ -12,5 +12,5 @@ if [ ! -f "$DB" ]; then
   python scripts/init_dummy_db.py
 fi
 
-echo "Sales Lead Research web UI -> http://localhost:${GRADIO_SERVER_PORT:-7860}"
-exec python app.py
+echo "Sales Lead Research API -> http://localhost:${APP_PORT:-8000}"
+exec uvicorn sales_lead_research.api:app --host 0.0.0.0 --port "${APP_PORT:-8000}"

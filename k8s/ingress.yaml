@@ -1,0 +1,23 @@
+# Internet-facing ingress via the AWS Load Balancer Controller (ALB).
+# Requires the controller installed on the EKS cluster:
+#   https://kubernetes-sigs.github.io/aws-load-balancer-controller/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sales-lead-research
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sales-lead-research
+                port:
+                  number: 80

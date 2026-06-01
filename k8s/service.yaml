@@ -1,0 +1,15 @@
+# Cluster-internal Service. Exposed to the internet via the Ingress (ALB).
+apiVersion: v1
+kind: Service
+metadata:
+  name: sales-lead-research
+  labels:
+    app: sales-lead-research
+spec:
+  type: ClusterIP
+  selector:
+    app: sales-lead-research
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

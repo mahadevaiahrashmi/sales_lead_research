@@ -1,0 +1,56 @@
+# Deployment for the Sales Lead Research API (FastAPI/uvicorn on :8000).
+#
+# The demo customer database is seeded into the pod's ephemeral filesystem
+# on start (the entrypoint runs the seeder when no DB exists). Matching is
+# read-only, so each replica having its own seeded copy is fine for a demo.
+# For real customer data, mount a volume or point SALES_DB_PATH at an
+# external database instead.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sales-lead-research
+  labels:
+    app: sales-lead-research
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sales-lead-research
+  template:
+    metadata:
+      labels:
+        app: sales-lead-research
+    spec:
+      containers:
+        - name: api
+          # Push the image to ECR and replace this, e.g.
+          #   <account>.dkr.ecr.<region>.amazonaws.com/sales-lead-research:<tag>
+          image: sales-lead-research:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: APP_PORT
+              value: "8000"
+            - name: SALES_DB_PATH
+              value: /app/data/customers.sqlite
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

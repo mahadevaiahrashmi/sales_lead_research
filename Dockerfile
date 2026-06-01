@@ -1,10 +1,10 @@
-# Local web UI (Gradio) for Sales Lead Research.
+# REST API + web UI (FastAPI) for Sales Lead Research.
 #
-#   docker compose up --build      ->  http://localhost:7860
+#   docker compose up --build      ->  http://localhost:8000
 #
 # The image installs the package with `uv` (using uv.lock for a
-# reproducible build), then runs app.py. On first start the entrypoint
-# seeds a demo customer database so the UI shows real account matches.
+# reproducible build), then serves the FastAPI app with uvicorn. On first
+# start the entrypoint seeds a demo customer database so matches show up.
 
 FROM python:3.12-slim-bookworm
 
@@ -18,11 +18,10 @@ ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     PATH="/app/.venv/bin:$PATH" \
     SALES_DB_PATH=/app/data/customers.sqlite \
-    GRADIO_SERVER_NAME=0.0.0.0 \
-    GRADIO_SERVER_PORT=7860
+    APP_PORT=8000
 
 # 1) Install third-party dependencies only — cached unless pyproject /
-#    uv.lock change (the heavy layer: gradio, httpx, pypdf, ...).
+#    uv.lock change (the heavy layer: fastapi, uvicorn, httpx, pypdf, ...).
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
@@ -30,10 +29,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY src ./src
 RUN uv sync --frozen --no-dev
 
-# 3) Application entry point, demo-data seeder, and startup script.
-COPY app.py docker-entrypoint.sh ./
+# 3) Startup script + demo-data seeder (the app itself ships in the package).
+COPY docker-entrypoint.sh ./
 COPY scripts ./scripts
 RUN chmod +x docker-entrypoint.sh
 
-EXPOSE 7860
+EXPOSE 8000
 ENTRYPOINT ["./docker-entrypoint.sh"]
