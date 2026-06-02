@@ -1,250 +1,96 @@
-# vteam-hybrid
+<!-- agent-notes: { ctx: "public README for the Sales Lead Research product", deps: [docs/user-guide.md, docs/run-locally.md, docs/code-map.md], state: active, last: "claude@2026-06-02" } -->
 
-**A virtual development team for Claude Code.** One template. A team of specialists that enforces TDD, challenges architecture decisions, and gets smarter the more you use it.
+# Sales Lead Research
 
-> Claude Code is powerful, but on a real project it drifts. You ask it to implement a feature and it skips tests. You ask for architecture advice and it writes code instead. Reviews are inconsistent. Context evaporates between sessions.
->
-> vteam-hybrid fixes this with 19 specialized agents — each with a defined role, clear boundaries, and rules about when they activate. You talk in natural language. The template handles the discipline.
+**Enter a company name and see its whole corporate family — its parent and the smaller companies it owns — with the ones you already sell to flagged by account number.**
+
+When a new lead comes in, this tool pulls the company's parent/subsidiary structure from its latest public annual report, then checks each of those companies against your customer list. Instead of a cold call, you can walk in warm: *"we already work with your parent company — here's the account history."*
+
+It runs two ways: as a **web app** (a chat window with saved history and customer-list upload) or as a **terminal chat** for quick local lookups.
 
 ---
 
-## Quick Start
+## What it does
 
-### 1. Create from template
+1. You type a company name (for example, **FedEx**).
+2. It finds that company's latest annual report filed with the U.S. securities regulator (SEC EDGAR) and reads the exhibit that lists its subsidiaries.
+3. It shows the corporate family as an indented tree — parent on top, the companies it owns underneath.
+4. It checks every company in that tree against **your** customer list and tags each one:
+   - **customer** (with the account number) — you already sell to them,
+   - **possibly a customer — verify** — the name is a near-match, worth a quick check,
+   - **not a customer** — a fresh lead.
+5. The result also shows **which report it came from and when**, so you can judge how current it is, and it can be exported to a spreadsheet.
 
-Click **"Use this template"** on GitHub, or:
+If a company doesn't file with the U.S. regulator (common for non-US firms), the tool offers to **search the web** and pull what it can from the company's published reports instead.
+
+There's a friendly, non-technical walkthrough in **[docs/user-guide.md](docs/user-guide.md)**.
+
+---
+
+## Quick start
+
+Prerequisites: Python 3.12 and the [`uv`](https://docs.astral.sh/uv/) package manager. All commands run from the repo root.
 
 ```bash
-git clone <this-repo> my-project && cd my-project
-rm -rf .git && git init && git add -A
-git commit -m "chore: initialize from vteam-hybrid template"
+# 1. (first time only) create a small demo customer list so matches show up
+uv run python scripts/init_dummy_db.py
+
+# 2a. run the web app
+uv run uvicorn sales_lead_research.api:app --host 127.0.0.1 --port 8001
+#     then open http://localhost:8001   (interactive API docs at /docs)
+
+# 2b. …or run the terminal chat instead
+uv run python -m sales_lead_research
 ```
 
-**Validate:** `ls .claude/agents/` — you should see 19 agent files (18 personas + 1 composite reviewer).
+In the web app, type a company name in the box at the bottom. Use **"Upload customer list"** in the left panel to load your own customers, or **"download a sample"** to see the expected format. In the terminal chat, type a company name and press Enter; type `exit` to quit.
 
-### 2. Open in Claude Code
+Other ways to run it (Docker via Colima, freeing port 8000, troubleshooting) are in **[docs/run-locally.md](docs/run-locally.md)**.
+
+---
+
+## Your customer list
+
+The tool can only flag existing customers if it has your customer list. Upload a spreadsheet in the web app, or seed the demo with the command above.
+
+The spreadsheet needs at least two columns — an **account number** and a **company name**. Other columns (country, location, tax id, …) are optional. Each upload **replaces** the previous list.
+
+The list is stored locally on the machine running the tool (`data/customers.sqlite` by default; override with the `SALES_DB_PATH` environment variable). Real customer data can include tax numbers — treat it as sensitive. For company-wide use, IT may prefer to connect the tool to your customer system directly rather than uploading a file.
+
+---
+
+## How it fits together
+
+```
+company name
+   → latest annual report (10-K, or 20-F) on SEC EDGAR
+   → the subsidiary-list exhibit (Exhibit 21)
+   → recursive parent/subsidiary tree
+   → match each name against your customer list
+   → tagged tree + match summary + exportable spreadsheet
+```
+
+The customer list is opened read-only, and a lookup index is built once in memory so each match scores only plausible candidates rather than the whole list. For a module-by-module map of the code, see **[docs/code-map.md](docs/code-map.md)**; for the broader design, **[docs/architecture.md](docs/architecture.md)** and the decision records in **[docs/adrs/](docs/adrs/)**.
+
+---
+
+## Development
 
 ```bash
-claude
+uv run pytest        # run the test suite
 ```
 
-### 3. Scaffold your stack (optional)
-
-| Command | What it sets up |
-|---------|----------------|
-| `/scaffold-cli` | Python or Rust CLI tool |
-| `/scaffold-web-monorepo` | TypeScript monorepo (Next.js, React) |
-| `/scaffold-ai-tool` | Python AI/ML tool (FastAPI, Streamlit) |
-| `/scaffold-static-site` | Static site for GitHub Pages |
-
-No scaffold fits? Skip this — the template works with any tech stack.
-
-**Validate:** `ls docs/code-map.md` exists (moved from `docs/scaffolds/`).
-
-### 4. Run discovery
-
-**Fast path (~5 min):**
-```
-/quickstart I want to build <your project description>
-```
-Cam asks 3 questions, creates a backlog, and starts your first TDD cycle immediately. Best for getting started quickly — you can add the full methodology later.
-
-**Full path (~30-60 min):**
-```
-/kickoff I want to build <your project description>
-```
-Five interactive phases: vision elicitation, product philosophy, design exploration, architecture with adversarial debate, and project board setup.
-
-**Validate (quickstart):** CLAUDE.md has your project name, `docs/plans/quickstart-backlog.md` exists, and your first test is written.
-
-**Validate (kickoff):** You should have `docs/product-context.md`, at least one ADR in `docs/adrs/`, and issues on your GitHub Projects board.
-
-### 5. Start building
-
-```
-/tdd <feature-name>
-```
-
-Tara writes failing tests first. Sato makes them pass. Code review runs automatically with three parallel lenses.
-
-**Validate:** A new test file, implementation code, and the issue moved to "In Review."
+| Doc | What's in it |
+|-----|--------------|
+| [docs/user-guide.md](docs/user-guide.md) | Plain-English guide for everyday (non-technical) use |
+| [docs/run-locally.md](docs/run-locally.md) | Every way to start/stop the app, plus troubleshooting |
+| [docs/code-map.md](docs/code-map.md) | Package structure, public functions, data flow — read first |
+| [docs/architecture.md](docs/architecture.md) | System design and the path to a production matcher |
+| [docs/tech-debt.md](docs/tech-debt.md) | Known limitations and what they'd cost to fix |
+| [CLAUDE.md](CLAUDE.md) | How this repo is built and maintained with Claude Code |
 
 ---
 
-## How It Works
+## License
 
-```
-You:  I want to build a CLI tool that converts markdown to PDF
-
-Cam:  Let me explore that with you. Who's the target user —
-      developers or non-technical users? And what's your priority:
-      fidelity to the markdown spec, or speed of conversion?
-
-You:  Developers, and speed matters more than fidelity.
-
-Cam:  Got it. Let me probe a few more things before we commit to
-      an approach...
-```
-
-After discovery, the system hands off to Tara (failing tests) then Sato (implementation). You stay in control — the agents do the structured work.
-
-**The five core agents** (always available):
-
-| Agent | Role | When they activate |
-|-------|------|--------------------|
-| **Cam** | Vision and elicitation | When you describe a new idea or vague requirement |
-| **Sato** | Implementation | When code needs to be written |
-| **Tara** | Testing (TDD) | Before Sato — writes failing tests first |
-| **Pat** | Product and priorities | When requirements need defining or priorities need setting |
-| **Grace** | Tracking and coordination | When work needs to be organized or status tracked |
-
-**Additional agents** activate when the work demands it — Archie for architecture, Vik for code review, Pierrot for security, Wei for devil's advocacy, Dani for design. You don't need to learn them upfront.
-
----
-
-## What Makes This Different
-
-- **TDD is enforced**, not suggested. Tara writes failing tests before Sato writes code.
-- **Architecture decisions get challenged.** Archie proposes, Wei attacks. Structured debate, not rubber-stamping.
-- **Security review is automatic.** Pierrot reviews every PR for vulnerabilities.
-- **Context survives between sessions.** Agent-notes in every file mean Claude doesn't start from zero.
-- **Sprint lifecycle is managed.** Grace tracks velocity, Pat manages the backlog, `/sprint-boundary` runs retros.
-
----
-
-## Sprint Lifecycle
-
-<!-- Text summary for accessibility: Plan (Pat + Grace) -> Architecture gate if needed (Archie + Wei debate) -> TDD cycle (Tara writes tests, Sato implements) -> Code review (Vik + Tara + Pierrot, three lenses) -> Done Gate (15-item checklist) -> repeat or sprint boundary -->
-
-```mermaid
-flowchart TD
-    Plan["Sprint Planning — Pat + Grace"]
-    Gate{"Architecture decision needed?"}
-    ADR["Write ADR — Archie"]
-    Debate["Challenge assumptions — Wei"]
-    TDD["TDD Cycle — Tara writes tests, Sato implements"]
-    Review["Code Review — Vik + Tara + Pierrot"]
-    DoneGate["Done Gate — 15-item checklist"]
-    More{"More items in sprint?"}
-    Boundary["Sprint Boundary — /sprint-boundary"]
-
-    Plan --> Gate
-    Gate -->|Yes| ADR --> Debate --> TDD
-    Gate -->|No| TDD
-    TDD --> Review --> DoneGate
-    DoneGate --> More
-    More -->|Yes| Gate
-    More -->|No| Boundary
-
-    style Plan fill:#e1f5fe
-    style TDD fill:#e8f5e9
-    style Review fill:#fce4ec
-    style DoneGate fill:#fff3e0
-    style Boundary fill:#f3e5f5
-```
-
----
-
-## All Commands
-
-| Command | Description |
-|---------|-------------|
-| `/quickstart` | Fast 5-min onboarding: 3 questions, backlog, first TDD cycle |
-| `/kickoff` | Full discovery workflow with board setup (30-60 min) |
-| `/plan` | Create an implementation plan for a feature |
-| `/tdd` | TDD workflow: Tara writes failing tests, Sato implements |
-| `/code-review` | Three-lens code review (simplicity, tests, security) |
-| `/review` | Guided human review/walkthrough session |
-| `/design` | Explore design concepts with Dani |
-| `/adr` | Create a new Architecture Decision Record |
-| `/sprint-boundary` | Sprint retro, backlog sweep, next sprint setup |
-| `/handoff` | Save session state for next session |
-| `/resume` | Pick up from a previous session's handoff |
-| `/retro` | Kaizen retrospective with GitHub issues |
-| `/scaffold-cli` | Scaffold a CLI project (Python/Rust) |
-| `/scaffold-web-monorepo` | Scaffold a web/mobile monorepo (TypeScript) |
-| `/scaffold-ai-tool` | Scaffold an AI/data tool (Python) |
-| `/scaffold-static-site` | Scaffold a static site (GitHub Pages) |
-| `/restack` | Re-evaluate tech stack choices |
-| `/pin-versions` | Pin dependency versions, update SBOM |
-| `/sync-template` | Reapply template evolutions to in-flight repo |
-| `/devcontainer` | Set up a dev container |
-| `/sync-ghcp` | Sync agents to GitHub Copilot format |
-| `/aws-review` | AWS deployment readiness review |
-| `/azure-review` | Azure deployment readiness review |
-| `/gcp-review` | GCP deployment readiness review |
-| `/cloud-update` | Refresh cloud service landscape research |
-| `/doctor` | Run 8 diagnostic checks on project setup |
-| `/whatsit` | Explain a technology or concept (scout mode) |
-
----
-
-## What Gets Created
-
-```
-.
-├── CLAUDE.md                 # Runtime instructions for Claude Code
-├── docs/
-│   ├── methodology/          # System docs (phases, personas, agent-notes)
-│   ├── process/              # Governance, done gate, gotchas
-│   ├── integrations/         # Tracking adapters (GitHub Projects, Jira)
-│   ├── adrs/                 # Architecture Decision Records
-│   └── template-guide.md     # Deep-dive reference and customization guide
-├── .claude/
-│   ├── agents/               # 19 agent definitions (18 personas + 1 composite)
-│   └── commands/             # 27 workflow commands
-└── scripts/                  # Automation scripts
-```
-
-Directories like `docs/plans/`, `docs/sprints/`, `docs/tracking/`, and `docs/security/` are created automatically by commands when first needed.
-
----
-
-## Samples
-
-See what the methodology produces before committing to it:
-
-| Sample | Demonstrates | Time |
-|--------|-------------|------|
-| [hello-tdd/](samples/hello-tdd/) | Core TDD workflow (Tara writes tests, Sato makes them pass) | ~5 min |
-| [architecture-debate/](samples/architecture-debate/) | Architecture Gate (Archie proposes, Wei challenges) | ~5 min |
-| [full-sprint/](samples/full-sprint/) | Complete sprint lifecycle (plan, TDD, review, retro) | ~10 min |
-
----
-
-## Going Deeper
-
-| Doc | Time | What you'll learn |
-|-----|------|-------------------|
-| [Template Guide](docs/template-guide.md) | 5 min | Customization, scaling, full command reference |
-| [Phases (TL;DR)](docs/methodology/phases.md#tldr) | 2 min | The 7 phases at a glance |
-| [Phases (full)](docs/methodology/phases.md) | 10 min | How each phase works, who participates |
-| [Personas](docs/methodology/personas.md) | skim | The 19-agent roster, capabilities, tiers |
-
----
-
-## Development Environment
-
-This project ships a devcontainer for reproducible local development.
-
-**With VS Code (recommended).** Install the "Dev Containers" extension, open the project folder, and pick *"Reopen in Container"* when prompted. The container installs Python 3.12, the `uv` dependency manager, the GitHub CLI, and project dependencies automatically.
-
-**With GitHub Codespaces.** Push to GitHub and click *"Code → Codespaces → Create codespace on main"*.
-
-**With the dev container CLI.** `devcontainer up --workspace-folder .`
-
-Once the container is up:
-
-```bash
-uv run pytest              # run the test suite
-uv run python -m sales_lead_research   # run the terminal tool
-uv run python app.py       # serve the local Gradio UI on port 7860
-```
-
-Port `7860` is auto-forwarded when you start a Gradio front-end. Config lives in `.devcontainer/devcontainer.json`.
-
----
-
-## Replace This README
-
-This README is automatically replaced during `/quickstart`, `/kickoff`, or any `/scaffold-*` command. See [Template Guide](docs/template-guide.md) for the full reference.
+See [LICENSE](LICENSE).
