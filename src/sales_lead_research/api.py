@@ -13,10 +13,11 @@ The static single-page front-end (``static/index.html``) is served at ``/``.
 Run it with: ``uvicorn sales_lead_research.api:app --host 0.0.0.0 --port 8000``.
 """
 
+import os
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -30,6 +31,7 @@ from sales_lead_research.discovery import (
     web_search_subsidiaries,
 )
 from sales_lead_research.discovery.edgar import exhibit_21_url, latest_annual_report
+from sales_lead_research.matching.init_db import rebuild_from_csv_text
 from sales_lead_research.matching.store import (
     CustomerStore,
     Matches,
@@ -232,6 +234,45 @@ def web_lookup(company: str = Query(..., description="Non-SEC company name")):
         "customers_matched": matched,
         "flat": [r.model_dump() for r in rows],
     }
+
+
+_DEFAULT_DB_PATH = Path("data/customers.sqlite")
+_MAX_CSV_BYTES = 25 * 1024 * 1024
+
+
+def _db_path() -> Path:
+    return Path(os.environ.get("SALES_DB_PATH", str(_DEFAULT_DB_PATH)))
+
+
+@app.get("/api/customers")
+def customers_status() -> dict[str, object]:
+    """Whether a customer list is loaded, and how many rows it has."""
+    store = open_store()
+    if store is None:
+        return {"loaded": False, "rows": 0}
+    return {"loaded": True, "rows": len(store.name_by_account)}
+
+
+@app.post("/api/customers")
+async def upload_customers(request: Request) -> dict[str, object]:
+    """Load the customer list from an uploaded CSV (the request body).
+
+    The CSV needs at least `account_id` and `company_name` columns. This
+    OVERWRITES the current list and writes it to the server's local path
+    (`SALES_DB_PATH`). The data is sensitive (it can include tax numbers) — for
+    production prefer a mounted volume or a direct CRM connection rather than an
+    upload.
+    """
+    raw = await request.body()
+    if len(raw) > _MAX_CSV_BYTES:
+        raise HTTPException(status_code=413, detail="CSV too large (max 25 MB).")
+    try:
+        rows = rebuild_from_csv_text(_db_path(), raw.decode("utf-8", errors="replace"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # malformed CSV / bad rows
+        raise HTTPException(status_code=400, detail=f"Could not load CSV: {exc}") from exc
+    return {"loaded": True, "rows": rows}
 
 
 # Serve the single-page front-end (declared last so /api and /health win).

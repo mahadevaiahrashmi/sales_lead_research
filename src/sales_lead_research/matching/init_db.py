@@ -9,6 +9,7 @@ is the user-facing surface; this module just does the work.
 from __future__ import annotations
 
 import csv
+import io
 import sqlite3
 from pathlib import Path
 
@@ -66,3 +67,35 @@ def _load_seed_rows(seed_csv: Path | str) -> list[tuple[str | None, ...]]:
                 + ", ".join(_COLUMNS)
             )
         return [tuple((row[col] or None) for col in _COLUMNS) for row in reader]
+
+
+def rebuild_from_csv_text(db_path: Path | str, csv_text: str) -> int:
+    """(Re)create the customer database from CSV text; return the row count.
+
+    Requires at least ``account_id`` and ``company_name`` columns; any other
+    schema columns are optional (missing ones are stored as NULL), and extra
+    columns are ignored. Overwrites any existing database at *db_path*. This is
+    the entry point the web upload uses to let a user supply their own list.
+    """
+    reader = csv.DictReader(io.StringIO(csv_text))
+    fields = set(reader.fieldnames or ())
+    if "account_id" not in fields or "company_name" not in fields:
+        raise ValueError(
+            "CSV must include at least 'account_id' and 'company_name' columns."
+        )
+    rows = [tuple((row.get(col) or None) for col in _COLUMNS) for row in reader]
+
+    db_path = Path(db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    if db_path.exists():
+        db_path.unlink()
+    with sqlite3.connect(db_path) as connection:
+        connection.executescript(_SCHEMA)
+        if rows:
+            connection.executemany(
+                "INSERT INTO customers (" + ", ".join(_COLUMNS) + ") "
+                "VALUES (" + ", ".join(["?"] * len(_COLUMNS)) + ")",
+                rows,
+            )
+        connection.commit()
+    return len(rows)

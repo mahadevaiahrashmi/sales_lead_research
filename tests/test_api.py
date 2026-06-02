@@ -181,3 +181,45 @@ class TestWebLookup:
         monkeypatch.chdir(tmp_path)
         c = TestClient(api.app)
         assert c.get("/api/web-lookup", params={"company": "Nope"}).status_code == 404
+
+
+class TestCustomers:
+    """The CRM-data endpoints: report status and load a customer list from an
+    uploaded CSV (this is how a user provides their customer data)."""
+
+    def test_status_empty_when_no_db(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("SALES_DB_PATH", str(tmp_path / "missing.sqlite"))
+        c = TestClient(api.app)
+        assert c.get("/api/customers").json() == {"loaded": False, "rows": 0}
+
+    def test_upload_loads_list_and_drives_matching(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("SALES_DB_PATH", str(tmp_path / "c.sqlite"))
+        monkeypatch.setattr(api, "build_client", _mock_build)
+        c = TestClient(api.app)
+
+        csv_text = "account_id,company_name\nACCT-CHILD,CHILD INC\nACCT-X,Other Co\n"
+        r = c.post("/api/customers", content=csv_text, headers={"Content-Type": "text/csv"})
+        assert r.status_code == 200 and r.json() == {"loaded": True, "rows": 2}
+        assert c.get("/api/customers").json() == {"loaded": True, "rows": 2}
+
+        # The freshly uploaded list now drives the matcher.
+        d = c.get(
+            "/api/lookup", params={"company": "PARENT CORP", "cik": "0009999999"}
+        ).json()
+        assert d["customers_matched"] == 1
+        child = next(row for row in d["flat"] if row["name"] == "CHILD INC")
+        assert child["account_ids"] == ["ACCT-CHILD"]
+
+    def test_upload_rejects_missing_required_columns(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("SALES_DB_PATH", str(tmp_path / "c.sqlite"))
+        c = TestClient(api.app)
+        r = c.post(
+            "/api/customers", content="name,foo\nA,B\n", headers={"Content-Type": "text/csv"}
+        )
+        assert r.status_code == 400
