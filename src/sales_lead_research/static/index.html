@@ -6,197 +6,272 @@
   <title>Sales Lead Research</title>
   <style>
     :root {
-      --bg: #faf7f2; --panel: #fff; --ink: #1a1714; --sub: #5e5545;
+      --bg: #faf7f2; --panel: #fff; --side: #f1ece3; --ink: #1a1714; --sub: #5e5545;
       --line: #ebe4d8; --accent: #d97757; --accent-d: #c4613f;
       --ok: #2f7d4f; --ok-bg: #e7f3ec; --warn: #9a6a1f; --warn-bg: #fbf0db;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
     body {
-      margin: 0; background: var(--bg); color: var(--ink);
+      background: var(--bg); color: var(--ink);
       font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif;
     }
-    .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
-    h1 { font-size: 24px; letter-spacing: -0.02em; margin: 0 0 4px; }
-    p.lede { color: var(--sub); margin: 0 0 24px; }
-    .searchbar { display: flex; gap: 8px; }
-    input[type=text] {
-      flex: 1; padding: 12px 14px; border: 1px solid var(--line);
-      border-radius: 10px; font-size: 15px; background: var(--panel);
+    .app { display: flex; height: 100vh; }
+
+    /* ---- sidebar ---- */
+    .sidebar {
+      width: 280px; flex: none; background: var(--side); border-right: 1px solid var(--line);
+      display: flex; flex-direction: column; padding: 12px;
     }
-    input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,87,.15); }
-    button {
-      padding: 12px 18px; border: 0; border-radius: 10px; cursor: pointer;
-      background: var(--accent); color: #fff; font-weight: 600; font-size: 15px;
+    .brand { font-weight: 700; letter-spacing: -0.02em; padding: 6px 8px 12px; }
+    .newchat {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+      background: var(--panel); color: var(--ink); font-weight: 600; cursor: pointer; text-align: left;
     }
-    button:hover { background: var(--accent-d); }
-    button.ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
-    #status { color: var(--sub); margin: 16px 0; min-height: 20px; }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
-    .candidate { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
-    .candidate:last-child { border-bottom: 0; }
-    .meta { color: var(--sub); font-size: 13px; }
-    ul.tree { list-style: none; margin: 0; padding-left: 0; }
-    ul.tree ul { list-style: none; margin: 0; padding-left: 20px; border-left: 1px solid var(--line); }
-    li.node { padding: 4px 0; }
+    .newchat:hover { border-color: var(--accent); }
+    .threads { flex: 1; overflow-y: auto; margin: 12px 0; display: flex; flex-direction: column; gap: 2px; }
+    .thread {
+      padding: 9px 10px; border-radius: 8px; cursor: pointer; color: var(--sub);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px;
+    }
+    .thread:hover { background: #e7e0d4; }
+    .thread.active { background: var(--panel); color: var(--ink); font-weight: 600; }
+    .crm {
+      border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; color: var(--sub);
+    }
+    .crm .status { margin-bottom: 8px; }
+    .crm .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: #c9bda8; }
+    .crm .dot.on { background: var(--ok); }
+    .crm button {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+      background: var(--panel); color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 600;
+    }
+    .crm button:hover { border-color: var(--accent); }
+    .crm .note { margin-top: 6px; font-size: 11px; color: #9b8f7c; }
+
+    /* ---- main ---- */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .messages { flex: 1; overflow-y: auto; padding: 24px 0; }
+    .stream { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+    .empty { color: var(--sub); text-align: center; margin-top: 18vh; }
+    .empty h2 { color: var(--ink); font-weight: 600; margin: 0 0 6px; }
+    .msg { display: flex; margin: 14px 0; }
+    .msg.user { justify-content: flex-end; }
+    .bubble { max-width: 100%; padding: 11px 14px; border-radius: 14px; }
+    .msg.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; max-width: 80%; }
+    .msg.bot .bubble { background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; width: 100%; }
+    .meta { color: var(--sub); font-size: 13px; margin-bottom: 8px; }
+    .meta a { color: var(--accent); }
+
+    ul.tree { list-style: none; margin: 6px 0 0; padding-left: 0; }
+    ul.tree ul { list-style: none; margin: 0; padding-left: 18px; border-left: 1px solid var(--line); }
+    li.node { padding: 3px 0; }
     .name { font-weight: 500; }
     .juris { color: var(--sub); font-size: 13px; }
     .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: 6px; }
     .badge.ok { color: var(--ok); background: var(--ok-bg); }
     .badge.warn { color: var(--warn); background: var(--warn-bg); }
     .badge.none { color: var(--sub); background: #f1ece3; }
-    code { background: #f1ece3; padding: 1px 5px; border-radius: 5px; font-size: 13px; }
-    a { color: var(--accent); }
+    .pick { display: block; width: 100%; text-align: left; margin-top: 6px; padding: 8px 10px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; }
+    .pick:hover { border-color: var(--accent); }
+    .linkbtn { margin-top: 8px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
+      background: var(--bg); cursor: pointer; font-weight: 600; }
+    .linkbtn:hover { border-color: var(--accent); }
+
+    /* ---- composer ---- */
+    .composer { border-top: 1px solid var(--line); background: var(--bg); padding: 14px 20px 20px; }
+    .composer .inner { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; }
+    textarea {
+      flex: 1; resize: none; max-height: 160px; padding: 12px 14px; border: 1px solid var(--line);
+      border-radius: 12px; font: inherit; background: var(--panel);
+    }
+    textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,87,.15); }
+    .send { padding: 12px 18px; border: 0; border-radius: 12px; background: var(--accent); color: #fff;
+      font-weight: 600; cursor: pointer; }
+    .send:hover { background: var(--accent-d); }
+    .hint { max-width: 760px; margin: 8px auto 0; color: #9b8f7c; font-size: 12px; text-align: center; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Sales Lead Research</h1>
-    <p class="lede">Type a company name to see its corporate family tree and which subsidiaries are already customers.</p>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Sales Lead Research</div>
+      <button class="newchat" id="newchat">+ New chat</button>
+      <div class="threads" id="threads"></div>
+      <div class="crm">
+        <div class="status"><span class="dot" id="crmdot"></span><span id="crmstatus">Checking customer list…</span></div>
+        <button id="uploadbtn">Upload customer list (CSV)</button>
+        <input type="file" id="csvfile" accept=".csv,text/csv" hidden />
+        <div class="note">Needs <code>account_id</code> + <code>company_name</code> columns. Stays on this server — sensitive data; for production connect to your CRM instead.</div>
+      </div>
+    </aside>
 
-    <div class="searchbar">
-      <input id="q" type="text" placeholder="e.g. FedEx, Apple, Microsoft" autocomplete="off" />
-      <button id="go">Search</button>
-    </div>
-
-    <div id="status"></div>
-    <div id="candidates"></div>
-    <div id="results"></div>
+    <main class="main">
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <div class="inner">
+          <textarea id="input" rows="1" placeholder="Ask about a company — e.g. “FedEx”, “Apple”, “show me Microsoft”"></textarea>
+          <button class="send" id="send">Send</button>
+        </div>
+        <div class="hint">Finds the corporate family tree and flags which subsidiaries are already customers.</div>
+      </div>
+    </main>
   </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const status = (msg) => { $("status").textContent = msg || ""; };
+    const STORE_KEY = "slr.conversations.v1";
 
+    let state = load();
+    function load() {
+      try { return JSON.parse(localStorage.getItem(STORE_KEY)) || { convos: [], activeId: null }; }
+      catch (e) { return { convos: [], activeId: null }; }
+    }
+    function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const active = () => state.convos.find((c) => c.id === state.activeId);
+
+    function newConvo() {
+      const c = { id: uid(), title: "New chat", messages: [] };
+      state.convos.unshift(c); state.activeId = c.id; save(); renderSidebar(); renderMessages();
+      $("input").focus();
+    }
+    function selectConvo(id) { state.activeId = id; save(); renderSidebar(); renderMessages(); }
+
+    function push(msg) {
+      let c = active();
+      if (!c) { c = { id: uid(), title: "New chat", messages: [] }; state.convos.unshift(c); state.activeId = c.id; }
+      if (msg.role === "user" && (c.title === "New chat" || !c.messages.length)) c.title = msg.text.slice(0, 40);
+      c.messages.push(msg); save(); renderSidebar(); renderMessages();
+    }
+
+    /* ---------- API calls ---------- */
     async function getJSON(url) {
       const r = await fetch(url);
-      if (!r.ok) {
-        let detail = r.statusText;
-        try { detail = (await r.json()).detail || detail; } catch (e) {}
-        throw new Error(detail);
-      }
+      if (!r.ok) { let d = r.statusText; try { d = (await r.json()).detail || d; } catch (e) {} throw new Error(d); }
       return r.json();
     }
 
-    async function search() {
-      const q = $("q").value.trim();
-      $("candidates").innerHTML = "";
-      $("results").innerHTML = "";
-      if (!q) return;
-      status(`Searching for “${q}”…`);
+    async function runQuery(text) {
+      push({ role: "user", text });
       try {
-        const data = await getJSON(`/api/search?q=${encodeURIComponent(q)}`);
-        if (!data.matches.length) {
-          status(data.message);
-          // Offer a web-fallback lookup for non-SEC filers.
-          const btn = document.createElement("button");
-          btn.className = "ghost";
-          btn.textContent = `Try a web search for “${q}”`;
-          btn.onclick = () => webLookup(q);
-          $("candidates").appendChild(btn);
-          return;
-        }
-        if (data.matches.length === 1) {
-          const m = data.matches[0];
-          status("");
-          return lookup(m.name, m.cik);
-        }
-        status(`Found ${data.matches.length} matches — pick one:`);
-        const card = document.createElement("div");
-        card.className = "card";
-        for (const m of data.matches) {
-          const row = document.createElement("div");
-          row.className = "candidate";
-          row.innerHTML = `<span class="name">${esc(m.name)}</span> <span class="meta">CIK ${esc(m.cik)}</span>`;
-          const pick = document.createElement("button");
-          pick.className = "ghost"; pick.textContent = "Look up";
-          pick.onclick = () => lookup(m.name, m.cik);
-          row.appendChild(pick);
-          card.appendChild(row);
-        }
-        $("candidates").appendChild(card);
-      } catch (e) { status("Error: " + e.message); }
+        const data = await getJSON(`/api/search?q=${encodeURIComponent(text)}`);
+        if (!data.matches.length) { push({ role: "bot", kind: "none", query: text, message: data.message }); return; }
+        if (data.matches.length === 1) return runLookup(data.matches[0].name, data.matches[0].cik);
+        push({ role: "bot", kind: "candidates", matches: data.matches });
+      } catch (e) { push({ role: "bot", kind: "error", text: e.message }); }
+    }
+    async function runLookup(company, cik) {
+      try { push({ role: "bot", kind: "lookup", data: await getJSON(`/api/lookup?company=${encodeURIComponent(company)}&cik=${encodeURIComponent(cik)}`) }); }
+      catch (e) { push({ role: "bot", kind: "error", text: e.message }); }
+    }
+    async function runWeb(company) {
+      try { push({ role: "bot", kind: "web", data: await getJSON(`/api/web-lookup?company=${encodeURIComponent(company)}`) }); }
+      catch (e) { push({ role: "bot", kind: "error", text: e.message }); }
     }
 
-    async function lookup(company, cik) {
-      $("candidates").innerHTML = "";
-      status(`Loading subsidiaries of ${company}…`);
-      try {
-        const d = await getJSON(`/api/lookup?company=${encodeURIComponent(company)}&cik=${encodeURIComponent(cik)}`);
-        status("");
-        renderResults(d);
-      } catch (e) { status("Error: " + e.message); }
-    }
-
-    async function webLookup(company) {
-      status(`Searching the web for ${company}…`);
-      try {
-        const d = await getJSON(`/api/web-lookup?company=${encodeURIComponent(company)}`);
-        status("");
-        renderWeb(d);
-      } catch (e) { status("Error: " + e.message); }
-    }
-
-    function badge(node) {
-      if (node.account_ids && node.account_ids.length)
-        return `<span class="badge ok">customer: ${node.account_ids.join(", ")}</span>`;
-      if (node.possible_account_ids && node.possible_account_ids.length)
-        return `<span class="badge warn">possibly ${node.possible_account_ids.join(", ")} — verify</span>`;
+    /* ---------- rendering ---------- */
+    function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function badge(n) {
+      if (n.account_ids && n.account_ids.length) return `<span class="badge ok">customer: ${esc(n.account_ids.join(", "))}</span>`;
+      if (n.possible_account_ids && n.possible_account_ids.length) return `<span class="badge warn">possibly ${esc(n.possible_account_ids.join(", "))} — verify</span>`;
       return `<span class="badge none">not a customer</span>`;
     }
-
-    function renderNode(node) {
-      const li = document.createElement("li");
-      li.className = "node";
-      const juris = node.jurisdiction ? ` <span class="juris">(${esc(node.jurisdiction)})</span>` : "";
-      li.innerHTML = `<span class="name">${esc(node.name)}</span>${juris} ${badge(node)}`;
-      if (node.children && node.children.length) {
-        const ul = document.createElement("ul");
-        node.children.forEach((c) => ul.appendChild(renderNode(c)));
-        li.appendChild(ul);
-      }
+    function nodeEl(n) {
+      const li = document.createElement("li"); li.className = "node";
+      const j = n.jurisdiction ? ` <span class="juris">(${esc(n.jurisdiction)})</span>` : "";
+      li.innerHTML = `<span class="name">${esc(n.name)}</span>${j} ${badge(n)}`;
+      if (n.children && n.children.length) { const ul = document.createElement("ul"); n.children.forEach((c) => ul.appendChild(nodeEl(c))); li.appendChild(ul); }
       return li;
     }
-
-    function renderResults(d) {
-      const card = document.createElement("div");
-      card.className = "card";
-      const fresh = d.filing_date ? ` · from ${esc(d.form)} filed ${esc(d.filing_date)}` : "";
-      card.innerHTML =
-        `<div><strong>${esc(d.company)}</strong> <span class="meta">CIK ${esc(d.cik)}${fresh}</span></div>` +
-        `<div class="meta" style="margin:6px 0 12px">${d.subsidiaries_total} subsidiaries · ` +
-        `<strong>${d.customers_matched}</strong> already in your customer list · ` +
-        `<a href="${esc(d.source_url)}" target="_blank" rel="noopener">source filing</a></div>`;
-      const ul = document.createElement("ul");
-      ul.className = "tree";
-      ul.appendChild(renderNode(d.tree));
-      card.appendChild(ul);
-      $("results").innerHTML = "";
-      $("results").appendChild(card);
+    function botBody(msg) {
+      const wrap = document.createElement("div");
+      if (msg.kind === "lookup") {
+        const d = msg.data;
+        const fresh = d.filing_date ? ` · from ${esc(d.form)} filed ${esc(d.filing_date)}` : "";
+        wrap.innerHTML = `<div class="meta"><strong>${esc(d.company)}</strong> · ${d.subsidiaries_total} subsidiaries · <strong>${d.customers_matched}</strong> already customers${fresh} · <a href="${esc(d.source_url)}" target="_blank" rel="noopener">source</a></div>`;
+        const ul = document.createElement("ul"); ul.className = "tree"; ul.appendChild(nodeEl(d.tree)); wrap.appendChild(ul);
+      } else if (msg.kind === "web") {
+        const d = msg.data; const src = d.source_url ? ` · <a href="${esc(d.source_url)}" target="_blank" rel="noopener">source</a>` : "";
+        wrap.innerHTML = `<div class="meta"><strong>${esc(d.parent || d.company)}</strong> (web search) · ${d.subsidiaries_total} subsidiaries · <strong>${d.customers_matched}</strong> already customers${src}</div>`;
+        const ul = document.createElement("ul"); ul.className = "tree"; d.flat.forEach((r) => ul.appendChild(nodeEl(r))); wrap.appendChild(ul);
+      } else if (msg.kind === "candidates") {
+        wrap.innerHTML = `<div class="meta">Found ${msg.matches.length} matches — which one?</div>`;
+        msg.matches.forEach((m) => {
+          const b = document.createElement("button"); b.className = "pick";
+          b.innerHTML = `${esc(m.name)} <span class="juris">CIK ${esc(m.cik)}</span>`;
+          b.onclick = () => runLookup(m.name, m.cik); wrap.appendChild(b);
+        });
+      } else if (msg.kind === "none") {
+        wrap.innerHTML = `<div class="meta">${esc(msg.message || "No SEC match.")}</div>`;
+        const b = document.createElement("button"); b.className = "linkbtn"; b.textContent = `Search the web for “${msg.query}”`;
+        b.onclick = () => runWeb(msg.query); wrap.appendChild(b);
+      } else if (msg.kind === "error") {
+        wrap.innerHTML = `<div class="meta">⚠️ ${esc(msg.text)}</div>`;
+      } else { wrap.textContent = msg.text || ""; }
+      return wrap;
     }
 
-    function renderWeb(d) {
-      const card = document.createElement("div");
-      card.className = "card";
-      const src = d.source_url ? ` · <a href="${esc(d.source_url)}" target="_blank" rel="noopener">source</a>` : "";
-      card.innerHTML =
-        `<div><strong>${esc(d.parent || d.company)}</strong> <span class="meta">(web search)</span></div>` +
-        `<div class="meta" style="margin:6px 0 12px">${d.subsidiaries_total} subsidiaries · ` +
-        `<strong>${d.customers_matched}</strong> already in your customer list${src}</div>`;
-      const ul = document.createElement("ul");
-      ul.className = "tree";
-      d.flat.forEach((row) => ul.appendChild(renderNode(row)));
-      card.appendChild(ul);
-      $("results").innerHTML = "";
-      $("results").appendChild(card);
+    function renderMessages() {
+      const box = $("messages"); box.innerHTML = "";
+      const c = active();
+      if (!c || !c.messages.length) {
+        const e = document.createElement("div"); e.className = "stream";
+        e.innerHTML = `<div class="empty"><h2>What company are you researching?</h2><div>Type a name below. I’ll pull its corporate family tree and flag which entities are already in your customer list.</div></div>`;
+        box.appendChild(e); return;
+      }
+      const stream = document.createElement("div"); stream.className = "stream";
+      c.messages.forEach((m) => {
+        const row = document.createElement("div"); row.className = "msg " + (m.role === "user" ? "user" : "bot");
+        const bub = document.createElement("div"); bub.className = "bubble";
+        if (m.role === "user") bub.textContent = m.text; else bub.appendChild(botBody(m));
+        row.appendChild(bub); stream.appendChild(row);
+      });
+      box.appendChild(stream); box.scrollTop = box.scrollHeight;
+    }
+    function renderSidebar() {
+      const t = $("threads"); t.innerHTML = "";
+      state.convos.forEach((c) => {
+        const d = document.createElement("div"); d.className = "thread" + (c.id === state.activeId ? " active" : "");
+        d.textContent = c.title || "New chat"; d.title = c.title; d.onclick = () => selectConvo(c.id); t.appendChild(d);
+      });
     }
 
-    function esc(s) {
-      return String(s).replace(/[&<>"']/g, (c) =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    /* ---------- customer list (CRM data) ---------- */
+    async function refreshCrm() {
+      try {
+        const s = await getJSON("/api/customers");
+        $("crmdot").className = "dot" + (s.loaded ? " on" : "");
+        $("crmstatus").textContent = s.loaded ? `Customer list: ${s.rows} accounts` : "No customer list loaded";
+      } catch (e) { $("crmstatus").textContent = "Customer list: unknown"; }
+    }
+    async function uploadCsv(file) {
+      const text = await file.text();
+      $("crmstatus").textContent = "Uploading…";
+      try {
+        const r = await fetch("/api/customers", { method: "POST", headers: { "Content-Type": "text/csv" }, body: text });
+        if (!r.ok) { let d = r.statusText; try { d = (await r.json()).detail || d; } catch (e) {} throw new Error(d); }
+        const data = await r.json();
+        await refreshCrm();
+        push({ role: "bot", kind: "error", text: `Loaded ${data.rows} customer accounts from ${file.name}. New lookups will match against them.` });
+      } catch (e) { $("crmstatus").textContent = "Upload failed"; push({ role: "bot", kind: "error", text: "Upload failed: " + e.message }); }
     }
 
-    $("go").onclick = search;
-    $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+    /* ---------- wire up ---------- */
+    function send() {
+      const v = $("input").value.trim(); if (!v) return;
+      $("input").value = ""; $("input").style.height = "auto"; runQuery(v);
+    }
+    $("send").onclick = send;
+    $("newchat").onclick = newConvo;
+    $("uploadbtn").onclick = () => $("csvfile").click();
+    $("csvfile").onchange = (e) => { if (e.target.files[0]) uploadCsv(e.target.files[0]); e.target.value = ""; };
+    $("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+    $("input").addEventListener("input", (e) => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px"; });
+
+    if (!state.convos.length) newConvo(); else { renderSidebar(); renderMessages(); }
+    refreshCrm();
   </script>
 </body>
 </html>
